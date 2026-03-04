@@ -1,5 +1,5 @@
 async def tts_node(state: dict) -> dict:
-    print("i came here [tts_node] -----------------------------")
+    print("[tts_node] -----------------------------")
 
     ai_text: str | None = state.get("ai_text")
     print("TTS received:", state.get("ai_text"))

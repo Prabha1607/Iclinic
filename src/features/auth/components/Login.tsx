@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAppDispatch } from "../../../hooks/hooks";
 import { setCredentials } from "../slices/authSlice";
 import { loginUser } from "../services/authService";
+import Header from "../../../components/Header";
 
 export default function Login() {
   const dispatch = useAppDispatch();
@@ -40,23 +41,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex flex-col">
-      {/* Inline Header */}
-      <header className="w-full bg-white border-b border-blue-100 shadow-sm">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md group-hover:bg-blue-700 transition-colors">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-blue-900">iClinic</span>
-          </Link>
-          <Link to="/register"
-            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
-            Create account →
-          </Link>
-        </div>
-      </header>
+      <Header />
 
       {/* Form */}
       <div className="flex-1 flex items-center justify-center px-4 py-12">

@@ -1,8 +1,7 @@
 // src/features/booking/components/BookingPage.tsx
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { initiateCall } from "../services/bookingService";
-import Logout from "../../auth/components/Logout";
+import Header from "../../../components/Header";
 
 export default function BookingPage() {
   const [phone, setPhone] = useState("");
@@ -112,21 +111,7 @@ export default function BookingPage() {
       `}</style>
 
       {/* Header */}
-      <header className="w-full bg-white/80 backdrop-blur border-b border-blue-100 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#3b5bfc] flex items-center justify-center">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <span style={{ fontFamily: "'Syne', sans-serif" }} className="text-lg font-800 text-[#0f1340] tracking-tight">
-              iClinic
-            </span>
-          </Link>
-          <Logout />
-        </div>
-      </header>
+      <Header />
 
       {/* Main */}
       <div className="flex-1 flex items-center justify-center px-4 py-16 dot-grid">

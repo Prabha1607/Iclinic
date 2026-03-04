@@ -36,7 +36,7 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/app   # remove this in production for a clean image
+      - ./backend:/app   
 
   # React Frontend
   frontend:

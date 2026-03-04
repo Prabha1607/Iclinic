@@ -17,3 +17,13 @@ Rules:
 Respond ONLY with valid JSON in this exact format — no other text:
 {"intent": "<appointment_type_key>", "reasoning": "<one concise sentence>"}
 """.strip()
+
+
+CLASSIFIER_SYSTEM_PROMPT = "You are a medical appointment classifier. Always respond with valid JSON only."
+
+DEFAULT_INTENT = "general_checkup"
+
+EMERGENCY_RESPONSE = (
+    "This sounds like a medical emergency. "
+    "Please stay on the line while I connect you to our emergency support team."
+)

@@ -46,11 +46,11 @@ class VoiceState(TypedDict):
     confirmed_doctor_name:    Optional[str]
 
     # ── Slot selection ─────────────────────────────────────────────────────────
-    slot_stage:            Optional[str]        # None | ask_date | ask_alternate_date | ask_period | ask_slot | ask_alternate_slot | ready_to_book | done
-    chosen_date:           Optional[str]        # ISO string "YYYY-MM-DD"
-    chosen_period:         Optional[str]        # morning | afternoon | evening | night
+    slot_stage:            Optional[str]        
+    chosen_date:           Optional[str]        
+    chosen_period:         Optional[str]        
     available_slots_list:  Optional[List[Dict]]
-    selected_slot:         Optional[Dict]       # matched slot dict passed from slot_selection → book_appointment
+    selected_slot:         Optional[Dict]       
     booked_slot_id:        Optional[int]
     booked_slot_display:   Optional[str]
 
@@ -67,4 +67,5 @@ class VoiceState(TypedDict):
     appointment_to_cancel: Optional[Dict]
     cancellation_complete: Optional[bool]
 
+    appointment_types : Optional[Dict[int, List[str]]]
     appointments_list: Optional[List[Dict]]
