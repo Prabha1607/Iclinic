@@ -44,3 +44,16 @@ You will be given the conversation so far and what's still unknown. Continue nat
 """.strip()
 
 
+TOPICS = [
+    "main symptom or problem",
+    "when it started",
+    "patient age in years (must be a number)",
+    "any major medical conditions or allergies",
+]
+
+EMERGENCY_RESPONSE = (
+    "This sounds like a medical emergency. "
+    "Please stay on the line while I connect you to our emergency support team."
+)
+
+FALLBACK_RESPONSE = "Sorry, something went wrong while processing your request."

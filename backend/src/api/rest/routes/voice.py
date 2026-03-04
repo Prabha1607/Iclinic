@@ -4,13 +4,61 @@ from twilio.twiml.voice_response import VoiceResponse
 from src.config.settings import settings
 from src.control.voice_assistance.utils import fresh_state, make_gather, say
 from src.control.voice_assistance.graph import build_call_graph, build_response_graph
-from src.api.rest.dependencies import get_current_user
+from src.api.rest.dependencies import get_current_user, get_db
+from src.core.services.appointment_type import get_appointment_types
 from src.control.voice_assistance.session_store import get_session, set_session, delete_session
+from src.core.services.user import get_user
 
 router = APIRouter(prefix="/voice", tags=["Voice Assistance"])
 
 call_graph     = build_call_graph()
 response_graph = build_response_graph()
+
+FALLBACK_TEXT  = "I am sorry, something went wrong. Please try again."
+NO_SPEECH_TEXT = "Could you please repeat that?"
+RETRY_TEXT     = "Sorry, I did not catch that. Please go ahead and speak."
+TIMEOUT_TEXT   = "I still could not hear you. Thank you for calling. Goodbye."
+
+
+def _build_appointment_types(appointment_types: list) -> dict:
+    return {at.id: [at.name, at.description] for at in appointment_types}
+
+
+def _is_call_complete(result: dict) -> bool:
+    confirmation_done = result.get("confirmation_done", False)
+    confirmed_user    = result.get("confirmed_user", False)
+    return (
+        (confirmation_done and not confirmed_user)
+        or result.get("booked_slot_id") is not None
+        or result.get("cancellation_complete", False)
+    )
+
+
+def _build_twiml(ai_text: str, emergency: bool, call_complete: bool) -> str:
+    twiml = VoiceResponse()
+
+    if emergency:
+        say(twiml, ai_text)
+        twiml.dial(settings.EMERGENCY_FORWARD_NUMBER)
+        return str(twiml)
+
+    if call_complete:
+        say(twiml, ai_text)
+        twiml.hangup()
+        return str(twiml)
+
+    gather = make_gather()
+    say(gather, ai_text)
+    twiml.append(gather)
+
+    retry = make_gather()
+    say(retry, RETRY_TEXT)
+    twiml.append(retry)
+
+    say(twiml, TIMEOUT_TEXT)
+    twiml.hangup()
+
+    return str(twiml)
 
 
 @router.post("/make-call")
@@ -18,16 +66,22 @@ async def make_call(
     request: Request,
     to_number: str = Query(...),
     current_user=Depends(get_current_user),
+    db=Depends(get_db),
 ):
     result = await call_graph.ainvoke(fresh_state(to_number=to_number))
 
     if result.get("error"):
         return {"status": "error", "detail": result["error"]}
 
-    call_sid = result["call_sid"]
+    user              = await get_user(current_user.get("email"), db)
+    appointment_types = await get_appointment_types(db)
+    call_sid          = result["call_sid"]
+
     session_state = fresh_state(
         to_number=to_number,
         call_sid=call_sid,
+        patient_id=user.id,
+        appointment_types=_build_appointment_types(appointment_types),
         user_name=current_user.get("name"),
         user_email=current_user.get("email"),
         user_phone=current_user.get("phone_number"),
@@ -39,69 +93,28 @@ async def make_call(
 
 @router.post("/voice-response")
 async def voice_response(request: Request):
-
-
-    print("i came here [voice response] -----------------------------")
     form     = await request.form()
     call_sid = form.get("CallSid", "unknown")
     speech   = form.get("SpeechResult")
 
-
-    state = get_session(call_sid) or fresh_state(
-        to_number=form.get("To"),
-        call_sid=call_sid,
-    )
-
+    state            = get_session(call_sid) or fresh_state(to_number=form.get("To"), call_sid=call_sid)
     state["user_text"] = speech.strip() if speech else None
 
     try:
         result = await response_graph.ainvoke(state)
-    except Exception as exc:
+    except Exception:
+        result = {**state, "ai_text": FALLBACK_TEXT}
 
-        result = {**state, "ai_text": "I am sorry, something went wrong. Please try again."}
+    ai_text       = result.get("ai_text") or NO_SPEECH_TEXT
+    emergency     = result.get("emergency", False)
+    call_complete = _is_call_complete(result)
 
-    graph_text = result.get("ai_text") or "Could you please repeat that?"
-
-    
-    ai_text = graph_text
-    confirmation_done = result.get("confirmation_done", False)
-    confirmed_user    = result.get("confirmed_user", False)
-    emergency         = result.get("emergency", False)
-    cancellation_complete = result.get("cancellation_complete", False)
-
-    id = result.get("booked_slot_id")
-    
-    call_complete = (
-        (confirmation_done and not confirmed_user)  # identity denied
-        or id is not None                           # actual booking done
-        or cancellation_complete                    # actual cancellation done
-    )
-    
     if call_complete:
         delete_session(call_sid)
     else:
         set_session(call_sid, result)
 
-    # Build TwiML
-    twiml = VoiceResponse()
-
-    if emergency:
-        say(twiml, ai_text)
-        twiml.dial(settings.EMERGENCY_FORWARD_NUMBER) 
-
-    if call_complete:
-        say(twiml, ai_text)
-        twiml.hangup()
-    else:
-        gather = make_gather()
-        say(gather, ai_text)
-        twiml.append(gather)
-        
-        retry = make_gather()
-        say(retry, "Sorry, I did not catch that. Please go ahead and speak.")
-        twiml.append(retry)
-        say(twiml, "I still could not hear you. Thank you for calling. Goodbye.")
-        twiml.hangup()
-
-    return Response(content=str(twiml), media_type="application/xml")
-
+    return Response(
+        content=_build_twiml(ai_text, emergency, call_complete),
+        media_type="application/xml",
+    )

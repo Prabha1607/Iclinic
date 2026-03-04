@@ -4,8 +4,6 @@ import App from "../App";
 import HomePage from "../features/home/components/HomePage";
 import Login from "../features/auth/components/Login";
 import Register from "../features/auth/components/Register";
-import BookingPage from "../features/booking/components/BookingPage";
-import RequireAuth from "../components/RequireAuth";
 
 const router = createBrowserRouter([
   {
@@ -23,14 +21,6 @@ const router = createBrowserRouter([
       {
         path: "register",
         element: <Register />,
-      },
-      {
-        path: "booking",
-        element: (
-          <RequireAuth>
-            <BookingPage />
-          </RequireAuth>
-        ),
       },
     ],
   },

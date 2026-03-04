@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAppSelector } from "../hooks/hooks";
 import Logout from "../features/auth/components/Logout";
@@ -5,12 +6,23 @@ import Logout from "../features/auth/components/Logout";
 export default function Header() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
     <>
-      <header className="w-full bg-white/90 backdrop-blur border-b border-blue-100 shadow-sm sticky top-0 z-50">
+      <style>{`
+        .mobile-menu-enter {
+          animation: menuSlideDown 0.22s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+        @keyframes menuSlideDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
+      <header className="w-full bg-white/95 backdrop-blur border-b border-blue-100 shadow-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
 
           {/* Logo */}
@@ -28,28 +40,22 @@ export default function Header() {
             </span>
           </Link>
 
-          {/* Centre Nav Links (desktop) */}
+          {/* Centre Nav Links (desktop only) */}
           <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-            {[
-              { label: "Home", to: "/" },
-              { label: "Booking", to: "/booking" },
-            ].map(({ label, to }) => (
-              <Link
-                key={to}
-                to={to}
-                className={`text-sm font-medium px-4 py-2 rounded-lg transition-all ${
-                  isActive(to)
-                    ? "bg-[#eef2ff] text-[#3b5bfc]"
-                    : "text-slate-600 hover:text-[#3b5bfc] hover:bg-[#f5f7ff]"
-                }`}
-              >
-                {label}
-              </Link>
-            ))}
+            <Link
+              to="/"
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-all ${
+                isActive("/")
+                  ? "bg-[#eef2ff] text-[#3b5bfc]"
+                  : "text-slate-600 hover:text-[#3b5bfc] hover:bg-[#f5f7ff]"
+              }`}
+            >
+              Home
+            </Link>
           </nav>
 
-          {/* Right Side */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Right Side — desktop */}
+          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
             {isAuthenticated ? (
               <Logout />
             ) : (
@@ -73,31 +79,59 @@ export default function Header() {
               </>
             )}
           </div>
+
+          {/* Hamburger — mobile only */}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="md:hidden w-9 h-9 rounded-lg flex flex-col items-center justify-center gap-[5px] hover:bg-slate-100 transition-colors"
+            aria-label="Toggle menu"
+          >
+            <span className={`block w-5 h-0.5 bg-slate-600 rounded-full transition-all duration-200 ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-slate-600 rounded-full transition-all duration-200 ${menuOpen ? "opacity-0" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-slate-600 rounded-full transition-all duration-200 ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+          </button>
         </div>
 
-        {/* Mobile bottom nav bar */}
-        <div className="md:hidden border-t border-blue-50 flex">
-          {[
-            { label: "Home", to: "/" },
-            { label: "Booking", to: "/booking" },
-            ...(isAuthenticated ? [] : [
-              { label: "Login", to: "/login" },
-              { label: "Sign Up", to: "/register" },
-            ]),
-          ].map(({ label, to }) => (
+        {/* Mobile dropdown menu */}
+        {menuOpen && (
+          <div className="md:hidden mobile-menu-enter border-t border-blue-50 bg-white px-4 py-3 space-y-1">
             <Link
-              key={to}
-              to={to}
-              className={`flex-1 text-center text-xs font-medium py-2.5 transition-all ${
-                isActive(to)
-                  ? "text-[#3b5bfc] border-b-2 border-[#3b5bfc]"
-                  : "text-slate-500"
+              to="/"
+              onClick={() => setMenuOpen(false)}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                isActive("/") ? "bg-[#eef2ff] text-[#3b5bfc]" : "text-slate-600 hover:bg-slate-50"
               }`}
             >
-              {label}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Home
             </Link>
-          ))}
-        </div>
+
+            {isAuthenticated ? (
+              <div className="pt-1 border-t border-slate-100">
+                <Logout />
+              </div>
+            ) : (
+              <div className="pt-2 border-t border-slate-100 flex gap-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex-1 text-center text-sm font-medium px-4 py-2.5 rounded-xl border border-blue-200 text-[#3b5bfc] hover:bg-[#eef2ff] transition-all"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex-1 text-center text-sm font-semibold bg-[#3b5bfc] hover:bg-[#2f4edc] text-white px-4 py-2.5 rounded-xl transition-all shadow-sm"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </header>
     </>
   );

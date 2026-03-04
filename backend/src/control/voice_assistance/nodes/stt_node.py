@@ -1,4 +1,5 @@
 async def stt_node(state: dict) -> dict:
+    
     print("[stt_node] -----------------------------")
 
     user_text: str | None = state.get("user_text")

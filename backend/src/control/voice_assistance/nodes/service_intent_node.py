@@ -1,7 +1,4 @@
-from src.data.models.postgres.user import User
-from src.data.repositories.generic_crud import get_instance_by_any
 from src.control.voice_assistance.models import get_llama1
-from src.data.clients.postgres_client import AsyncSessionLocal
 
 SERVICE_INTENT_PROMPT = """
     You are an intent classifier for a hospital voice assistant.
@@ -15,11 +12,7 @@ SERVICE_INTENT_PROMPT = """
     If unclear, reply: unclear
 """
 
-async def get_patient_id(email: str) -> str | None:
-    async with AsyncSessionLocal() as db:
-        user = await get_instance_by_any(User, db,{"email":email})
-        return user.id if user else None
-    
+
 async def service_intent_node(state: dict) -> dict:
     
     user_text = state.get("user_text")
@@ -48,7 +41,7 @@ async def service_intent_node(state: dict) -> dict:
                 "ai_text": "Sorry, I did not understand. Do you want to book an appointment or cancel one?",
                 "service_type": None,
             }
-        patient_id = await get_patient_id(state.get("user_email"))
+        patient_id = state.get("patient_id")
 
         return {
             **state,

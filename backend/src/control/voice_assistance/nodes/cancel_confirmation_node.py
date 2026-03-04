@@ -14,14 +14,13 @@ async def _send_cancellation_email(to_email: str, body: str) -> None:
 
 
 def _build_cancellation_email_body(state: dict) -> str:
-    appointment = state.get("appointment_to_cancel", {})
-
-    patient_name   = state.get("user_name", "Patient")
+    appointment      = state.get("appointment_to_cancel", {})
+    patient_name     = state.get("user_name", "Patient")
     appointment_type = appointment.get("type_name", "your appointment")
-    date           = appointment.get("date", "N/A")
-    start_time     = appointment.get("start_time", "N/A")
-    end_time       = appointment.get("end_time", "N/A")
-    reason         = appointment.get("reason", None)
+    date             = appointment.get("date", "N/A")
+    start_time       = appointment.get("start_time", "N/A")
+    end_time         = appointment.get("end_time", "N/A")
+    reason           = appointment.get("reason")
 
     lines = [
         f"Dear {patient_name},",
@@ -48,37 +47,23 @@ def _build_cancellation_email_body(state: dict) -> str:
 
 
 async def cancel_confirmation_node(state: dict) -> dict:
-
     print("[cancel_confirmation_node] -----------------------------")
 
-    # Only run after a successful cancellation
     if not state.get("cancellation_complete"):
-        print("[cancel_confirmation_node] Cancellation not complete, skipping email")
         return state
 
-    # Don't send email if appointment wasn't actually cancelled (user said NO)
-    appointment = state.get("appointment_to_cancel")
-    if not appointment:
-        print("[cancel_confirmation_node] No appointment_to_cancel in state, skipping email")
+    if not state.get("appointment_to_cancel"):
         return state
 
     to_email = state.get("user_email")
 
     if not to_email:
-        print(f"[cancel_confirmation_node] No email found in state, skipping")
         return state
 
     try:
-        body = _build_cancellation_email_body(state)
-        await _send_cancellation_email(to_email, body)
+        await _send_cancellation_email(to_email, _build_cancellation_email_body(state))
         print(f"[cancel_confirmation_node] Cancellation email sent to {to_email}")
-
     except Exception as e:
         print(f"[cancel_confirmation_node] Failed to send cancellation email: {e}")
 
     return state
-
-
-
-
-    
