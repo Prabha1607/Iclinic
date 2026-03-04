@@ -1,9 +1,11 @@
-// src/router/index.tsx
-import { createBrowserRouter, Navigate } from "react-router-dom";
+// src/app/routes.tsx
+import { createBrowserRouter } from "react-router-dom";
+import App from "../App";
+import HomePage from "../features/home/components/HomePage";
 import Login from "../features/auth/components/Login";
 import Register from "../features/auth/components/Register";
 import BookingPage from "../features/booking/components/BookingPage";
-import App from "../App";
+import RequireAuth from "../components/RequireAuth";
 
 const router = createBrowserRouter([
   {
@@ -12,7 +14,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Navigate to="/login" replace />,
+        element: <HomePage />,
       },
       {
         path: "login",
@@ -24,7 +26,11 @@ const router = createBrowserRouter([
       },
       {
         path: "booking",
-        element: <BookingPage />,
+        element: (
+          <RequireAuth>
+            <BookingPage />
+          </RequireAuth>
+        ),
       },
     ],
   },

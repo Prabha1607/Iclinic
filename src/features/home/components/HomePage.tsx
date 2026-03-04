@@ -254,7 +254,7 @@ export default function HomePage() {
                 ),
                 bg: "#eef2ff",
                 title: "Request a Call",
-                desc: "Click the booking button at the bottom right, enter your phone number — that's all you need to do.",
+                desc: "Click 'Can I help you book an appointment?' on any page. Enter your phone number — that's it.",
               },
               {
                 step: "02",

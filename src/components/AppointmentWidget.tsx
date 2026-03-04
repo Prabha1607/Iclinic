@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAppSelector } from "../hooks/hooks";
 import { initiateCall } from "../features/booking/services/bookingService";
 
 type Step = "idle" | "open" | "loading" | "success";
@@ -9,14 +7,8 @@ export default function AppointmentWidget() {
   const [step, setStep] = useState<Step>("idle");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
-  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
-  const navigate = useNavigate();
 
   const handleOpen = () => {
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
     setStep("open");
     setPhone("");
     setError("");
@@ -57,7 +49,7 @@ export default function AppointmentWidget() {
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Syne:wght@700&display=swap');
 
         .widget-bounce {
-          animation: widgetBounce 2.8s ease-in-out infinite;
+          animation: widgetBounce 2.5s ease-in-out infinite;
         }
         @keyframes widgetBounce {
           0%, 100% { transform: translateY(0); }
@@ -74,33 +66,26 @@ export default function AppointmentWidget() {
         .widget-ring-2 {
           animation-delay: 0.8s;
           inset: -8px;
-          opacity: 0.4;
+          opacity: 0.5;
         }
         @keyframes ringPulse {
-          0% { opacity: 0.6; transform: scale(1); }
+          0% { opacity: 0.7; transform: scale(1); }
           100% { opacity: 0; transform: scale(1.35); }
         }
         .panel-enter {
-          animation: panelEnter 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
+          animation: panelEnter 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
           transform-origin: bottom right;
         }
         @keyframes panelEnter {
-          from { opacity: 0; transform: scale(0.8) translateY(10px); }
+          from { opacity: 0; transform: scale(0.75) translateY(12px); }
           to { opacity: 1; transform: scale(1) translateY(0); }
         }
         .widget-tooltip {
-          animation: tooltipSlide 0.2s ease forwards;
+          animation: tooltipSlide 0.25s ease forwards;
         }
         @keyframes tooltipSlide {
           from { opacity: 0; transform: translateX(8px); }
           to { opacity: 1; transform: translateX(0); }
-        }
-        .success-check {
-          animation: checkPop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
-        }
-        @keyframes checkPop {
-          from { transform: scale(0); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
         }
         .loading-dots span {
           display: inline-block;
@@ -115,6 +100,13 @@ export default function AppointmentWidget() {
         @keyframes dotBounce {
           0%, 100% { transform: translateY(0); opacity: 0.4; }
           50% { transform: translateY(-4px); opacity: 1; }
+        }
+        .success-check {
+          animation: checkPop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+        }
+        @keyframes checkPop {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
 
@@ -142,7 +134,7 @@ export default function AppointmentWidget() {
                   You're all set!
                 </p>
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  Our AI agent will call you shortly to complete your booking.
+                  Our agent will call you shortly to complete the booking.
                 </p>
                 <button
                   onClick={handleClose}
@@ -160,7 +152,7 @@ export default function AppointmentWidget() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 </div>
-                <p className="font-semibold text-[#0f1340] text-sm mb-3">Connecting you now…</p>
+                <p className="font-semibold text-[#0f1340] text-sm mb-2">Reaching out…</p>
                 <div className="loading-dots flex justify-center gap-1.5">
                   <span /><span /><span />
                 </div>
@@ -175,7 +167,7 @@ export default function AppointmentWidget() {
                       Book an Appointment
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Enter your number — we'll call you right away
+                      We'll call you right away!
                     </p>
                   </div>
                   <button
@@ -222,13 +214,9 @@ export default function AppointmentWidget() {
 
                   <button
                     type="submit"
-                    className="w-full bg-[#3b5bfc] hover:bg-[#2f4edc] active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-md hover:shadow-lg hover:-translate-y-px flex items-center justify-center gap-2"
+                    className="w-full bg-[#3b5bfc] hover:bg-[#2f4edc] text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-md hover:shadow-lg hover:-translate-y-px active:translate-y-0"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    Call Me Now
+                    Notify Me
                   </button>
                 </form>
 
@@ -244,18 +232,16 @@ export default function AppointmentWidget() {
         {step === "idle" && (
           <div className="flex items-center gap-3">
             {/* Tooltip label */}
-            <div className="widget-tooltip relative bg-[#0f1340] text-white text-xs font-medium px-3.5 py-2 rounded-xl shadow-lg whitespace-nowrap">
-              Book an appointment
-              <div
-                className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-0 h-0"
-                style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '6px solid #0f1340' }}
-              />
+            <div className="widget-tooltip bg-[#0f1340] text-white text-xs font-medium px-3.5 py-2 rounded-xl shadow-lg whitespace-nowrap">
+              Can I help you book an appointment?
+              <div className="absolute right-[-6px] top-1/2 -translate-y-1/2 w-0 h-0"
+                style={{ borderTop: '5px solid transparent', borderBottom: '5px solid transparent', borderLeft: '6px solid #0f1340' }} />
             </div>
 
             {/* Round button */}
             <button
               onClick={handleOpen}
-              className="widget-bounce relative w-14 h-14 rounded-full bg-[#3b5bfc] hover:bg-[#2f4edc] active:scale-95 shadow-xl flex items-center justify-center transition-colors focus:outline-none"
+              className="widget-bounce relative w-14 h-14 rounded-full bg-[#3b5bfc] hover:bg-[#2f4edc] shadow-xl flex items-center justify-center transition-colors focus:outline-none"
               aria-label="Book appointment"
             >
               <div className="widget-ring" />
@@ -272,7 +258,7 @@ export default function AppointmentWidget() {
         {(step === "open" || step === "loading" || step === "success") && (
           <button
             onClick={handleClose}
-            className="w-14 h-14 rounded-full bg-[#3b5bfc] hover:bg-[#2f4edc] active:scale-95 shadow-xl flex items-center justify-center transition-all"
+            className="w-14 h-14 rounded-full bg-[#3b5bfc] hover:bg-[#2f4edc] shadow-xl flex items-center justify-center transition-colors"
             aria-label="Close widget"
           >
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

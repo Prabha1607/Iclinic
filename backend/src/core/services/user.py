@@ -96,3 +96,4 @@ async def get_roles(db : AsyncSession):
     roles = await bulk_get_instance(model = Role , db=db)
 
     return [{"id": role.id, "name": role.role_name} for role in roles]
+

@@ -14,13 +14,11 @@ async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    # Get token from cookie
     token = request.cookies.get("access_token")
 
     if not token:
         raise HTTPException(status_code=401, detail="Access token missing")
 
-    # Verify token
     payload = await verify_access_token(token)
 
     if payload is None:
