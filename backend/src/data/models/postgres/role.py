@@ -6,8 +6,17 @@ class Role(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
     role_name = Column(String(100), nullable=False, unique=True)
-    created_at = Column(DateTime(timezone=True), default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(
+    DateTime(timezone=True),
+    server_default=func.now(),
+    nullable=False
+    )
 
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
 
     

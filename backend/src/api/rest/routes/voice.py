@@ -25,11 +25,11 @@ def _build_appointment_types(appointment_types: list) -> dict:
 
 
 def _is_call_complete(result: dict) -> bool:
-    confirmation_done = result.get("confirmation_done", False)
-    confirmed_user    = result.get("confirmed_user", False)
+    identity_confirmation_completed = result.get("identity_confirmation_completed", False)
+    identity_confirmed_user         = result.get("identity_confirmed_user", False)
     return (
-        (confirmation_done and not confirmed_user)
-        or result.get("booked_slot_id") is not None
+        (identity_confirmation_completed and not identity_confirmed_user)
+        or result.get("slot_booked_id") is not None
         or result.get("cancellation_complete", False)
     )
 
@@ -68,23 +68,23 @@ async def make_call(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    result = await call_graph.ainvoke(fresh_state(to_number=to_number))
+    result = await call_graph.ainvoke(fresh_state(call_to_number=to_number))
 
-    if result.get("error"):
-        return {"status": "error", "detail": result["error"]}
+    if result.get("speech_error"):
+        return {"status": "error", "detail": result["speech_error"]}
 
     user              = await get_user(current_user.get("email"), db)
     appointment_types = await get_appointment_types(db)
     call_sid          = result["call_sid"]
 
     session_state = fresh_state(
-        to_number=to_number,
+        call_to_number=to_number,
         call_sid=call_sid,
-        patient_id=user.id,
+        identity_patient_id=user.id,
         appointment_types=_build_appointment_types(appointment_types),
-        user_name=current_user.get("name"),
-        user_email=current_user.get("email"),
-        user_phone=current_user.get("phone_number"),
+        identity_user_name=current_user.get("name"),
+        identity_user_email=current_user.get("email"),
+        identity_user_phone=current_user.get("phone_number"),
     )
     set_session(call_sid, session_state)
 
@@ -97,16 +97,16 @@ async def voice_response(request: Request):
     call_sid = form.get("CallSid", "unknown")
     speech   = form.get("SpeechResult")
 
-    state            = get_session(call_sid) or fresh_state(to_number=form.get("To"), call_sid=call_sid)
-    state["user_text"] = speech.strip() if speech else None
+    state                     = get_session(call_sid) or fresh_state(call_to_number=form.get("To"), call_sid=call_sid)
+    state["speech_user_text"] = speech.strip() if speech else None
 
     try:
         result = await response_graph.ainvoke(state)
     except Exception:
-        result = {**state, "ai_text": FALLBACK_TEXT}
+        result = {**state, "speech_ai_text": FALLBACK_TEXT}
 
-    ai_text       = result.get("ai_text") or NO_SPEECH_TEXT
-    emergency     = result.get("emergency", False)
+    ai_text       = result.get("speech_ai_text") or NO_SPEECH_TEXT
+    emergency     = result.get("mapping_emergency", False)
     call_complete = _is_call_complete(result)
 
     if call_complete:

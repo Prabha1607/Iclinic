@@ -53,10 +53,11 @@ def _build_doctors_context(doctors: list[dict]) -> str:
 def _auto_select_state(state: dict, doctor: dict) -> dict:
     return {
         **state,
-        "confirmed_doctor_id": doctor["id"],
-        "confirmed_doctor_name": doctor["name"],
+        "doctor_confirmed_id": doctor["id"],
+        "doctor_confirmed_name": doctor["name"],
         "doctor_selection_pending": False,
-        "ai_text": (
+        "doctor_selection_completed": True,
+        "speech_ai_text": (
             f"You'll be seeing {doctor['name']}, {doctor['specialization']} "
             f"with {doctor['experience']} years of experience. "
             "Let me now finalize your appointment."
@@ -69,8 +70,9 @@ def _present_doctors_state(state: dict, doctors: list[dict], intent: str) -> dic
     return {
         **state,
         "doctor_selection_pending": True,
-        "doctors_list": doctors,
-        "ai_text": (
+        "doctor_selection_completed": False,
+        "doctor_list": doctors,
+        "speech_ai_text": (
             f"Based on your {intent.replace('_', ' ')} concern, here are our available doctors:\n"
             f"{doctor_list_lines}\n"
             "Which doctor would you prefer? You can say their name or number."
@@ -81,10 +83,11 @@ def _present_doctors_state(state: dict, doctors: list[dict], intent: str) -> dic
 def _confirmed_doctor_state(state: dict, doctor_id: int, doctor_name: str) -> dict:
     return {
         **state,
-        "confirmed_doctor_id": doctor_id,
-        "confirmed_doctor_name": doctor_name,
+        "doctor_confirmed_id": doctor_id,
+        "doctor_confirmed_name": doctor_name,
+        "doctor_selection_completed": True,
         "doctor_selection_pending": False,
-        "ai_text": (
+        "speech_ai_text": (
             f"Great! I've noted {doctor_name} as your doctor. "
             "Let me now finalize your appointment."
         ),
@@ -112,15 +115,19 @@ async def _match_doctor_from_response(
 async def doctor_selection_node(state: dict) -> dict:
     print("[doctor_selection_node] -----------------------------")
 
-    if state.get("confirmed_doctor_id"):
-        return state
+    if state.get("doctor_confirmed_id"):
+        return {**state, "doctor_selection_completed": True}
 
-    doctors = await fetch_doctors(state.get("appointment_type_id") or -1)
+    doctors = await fetch_doctors(state.get("mapping_appointment_type_id") or -1)
 
     if not doctors:
-        return {**state, "ai_text": NO_DOCTORS_RESPONSE}
+        return {
+            **state,
+            "doctor_selection_completed": True,
+            "speech_ai_text": NO_DOCTORS_RESPONSE,
+        }
 
-    intent = state.get("intent", "general checkup")
+    intent = state.get("mapping_intent", "general checkup")
 
     if len(doctors) == 1:
         return _auto_select_state(state, doctors[0])
@@ -128,9 +135,11 @@ async def doctor_selection_node(state: dict) -> dict:
     if state.get("doctor_selection_pending") is None:
         return _present_doctors_state(state, doctors, intent)
 
-    user_text: str = state.get("user_text", "").strip()
+    user_text: str = (state.get("speech_user_text") or "").strip()
     doctor_id, doctor_name = await _match_doctor_from_response(user_text, intent, doctors)
 
     print(f"[doctor_selection_node] selected doctor: id={doctor_id}, name={doctor_name}")
 
     return _confirmed_doctor_state(state, doctor_id, doctor_name)
+
+

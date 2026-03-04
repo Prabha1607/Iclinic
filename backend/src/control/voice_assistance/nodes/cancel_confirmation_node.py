@@ -14,8 +14,8 @@ async def _send_cancellation_email(to_email: str, body: str) -> None:
 
 
 def _build_cancellation_email_body(state: dict) -> str:
-    appointment      = state.get("appointment_to_cancel", {})
-    patient_name     = state.get("user_name", "Patient")
+    appointment      = state.get("cancellation_appointment", {})
+    patient_name     = state.get("identity_user_name", "Patient")
     appointment_type = appointment.get("type_name", "your appointment")
     date             = appointment.get("date", "N/A")
     start_time       = appointment.get("start_time", "N/A")
@@ -52,10 +52,10 @@ async def cancel_confirmation_node(state: dict) -> dict:
     if not state.get("cancellation_complete"):
         return state
 
-    if not state.get("appointment_to_cancel"):
+    if not state.get("cancellation_appointment"):
         return state
 
-    to_email = state.get("user_email")
+    to_email = state.get("identity_user_email")
 
     if not to_email:
         return state
@@ -67,3 +67,5 @@ async def cancel_confirmation_node(state: dict) -> dict:
         print(f"[cancel_confirmation_node] Failed to send cancellation email: {e}")
 
     return state
+
+

@@ -2,7 +2,6 @@ from src.data.clients.postgres_client import AsyncSessionLocal
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.jwt_handler import verify_access_token
-from src.core.services.user import get_user
 
 async def get_db():
 

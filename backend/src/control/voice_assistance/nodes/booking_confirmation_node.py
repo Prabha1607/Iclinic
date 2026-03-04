@@ -14,11 +14,11 @@ async def _send_confirmation_email(to_email: str, body: str) -> None:
 
 
 def _build_email_body(state: dict) -> str:
-    doctor_name  = state.get("confirmed_doctor_name", "your doctor")
-    slot_display = state.get("booked_slot_display", "the scheduled time")
-    reason       = state.get("reason_for_visit")
-    instructions = state.get("instructions")
-    patient_name = state.get("user_name", "Patient")
+    doctor_name  = state.get("doctor_confirmed_name", "your doctor")
+    slot_display = state.get("slot_booked_display", "the scheduled time")
+    reason       = state.get("booking_reason_for_visit")
+    instructions = state.get("booking_instructions")
+    patient_name = state.get("identity_user_name", "Patient")
 
     lines = [
         f"Dear {patient_name},",
@@ -49,13 +49,13 @@ def _build_email_body(state: dict) -> str:
 async def booking_confirmation_node(state: dict) -> dict:
     print("[booking_confirmation_node] -----------------------------")
 
-    if not state.get("booked_slot_id"):
+    if not state.get("slot_booked_id"):
         return state
 
-    to_email = state.get("user_email")
+    to_email = state.get("identity_user_email")
 
     if not to_email:
-        print(f"[booking_confirmation_node] No email found for patient_id={state.get('patient_id')}")
+        print(f"[booking_confirmation_node] No email found for patient_id={state.get('identity_patient_id')}")
         return state
 
     try:
@@ -65,3 +65,4 @@ async def booking_confirmation_node(state: dict) -> dict:
         print(f"[booking_confirmation_node] Failed to send confirmation email: {e}")
 
     return state
+

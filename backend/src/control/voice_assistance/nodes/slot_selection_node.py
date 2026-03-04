@@ -3,6 +3,7 @@ from datetime import time, date
 from src.control.voice_assistance.prompts.slot_selection_node_prompt import (
     LLM_DATE_SYSTEM,
     LLM_ALTERNATE_DATE_SYSTEM,
+    LLM_CONFIRM_SYSTEM,
     LLM_PERIOD_SYSTEM,
     LLM_SLOT_SYSTEM,
     LLM_ALTERNATE_SLOT_SYSTEM,
@@ -89,9 +90,11 @@ def periods_on_date(slots: list[dict]) -> dict[str, list]:
 async def llm_extract(system: str, human: str) -> dict:
     llm = get_llama1()
     response = await llm.ainvoke([("system", system), ("human", human)])
+    raw = response.content.strip()
     try:
-        return json.loads(clear_markdown(response.content.strip()))
-    except Exception:
+        return json.loads(clear_markdown(raw))
+    except Exception as e:
+        print("[llm_extract parse error]:", e, "| raw:", raw)
         return {}
 
 
@@ -108,10 +111,29 @@ def _build_date_options(available_dates: list[date]) -> str:
 
 def _build_slot_context(slots: list[dict], use_full_display: bool = False) -> str:
     display_key = "full_display" if use_full_display else "display"
-    return "\n".join(f"id={s['id']} time={s[display_key]}" for s in slots)
+    return "\n".join(
+        f"slot_id={s['id']} start_time={s['start_time']} end_time={s['end_time']} display={s[display_key]}"
+        for s in slots
+    )
+
+def _nearest_alt_dates(chosen_date: date, available_dates: list[date]) -> list[date]:
+    before = sorted([d for d in available_dates if d < chosen_date], reverse=True)
+    after  = sorted([d for d in available_dates if d > chosen_date])
+
+    alts = []
+    if before:
+        alts.append(before[0])
+    alts.extend(after[:2])
+
+    if len(alts) < 3:
+        if not before and len(after) >= 3:
+            alts = after[:3]
+        elif not after and len(before) >= 3:
+            alts = sorted(before[:3])
+
+    return sorted(set(alts))[:3]
 
 
-# ── Stage handlers ────────────────────────────────────────────────────────────
 async def _proceed_to_period(state: dict, doctor_name: str, chosen_date: date, date_slots: list) -> dict:
     periods           = periods_on_date(date_slots)
     available_periods = list(periods.keys())
@@ -123,11 +145,11 @@ async def _proceed_to_period(state: dict, doctor_name: str, chosen_date: date, d
         return update_state(
             state,
             slot_stage="ask_slot",
-            chosen_date=chosen_date,
-            chosen_period=chosen_period,
-            available_slots_list=period_slots,
-            ai_text=(
-                f"{doctor_name} is only available in the {chosen_period} on {fmt_date(chosen_date)}. "
+            slot_chosen_date=chosen_date,
+            slot_chosen_period=chosen_period,
+            slot_available_list=period_slots,
+            speech_ai_text=(
+                f"{doctor_name} only has {chosen_period} availability on {fmt_date(chosen_date)}. "
                 f"Here are the open slots:\n{slot_lines}\n"
                 "Which time works best for you?"
             ),
@@ -137,11 +159,11 @@ async def _proceed_to_period(state: dict, doctor_name: str, chosen_date: date, d
     return update_state(
         state,
         slot_stage="ask_period",
-        chosen_date=chosen_date,
-        ai_text=(
+        slot_chosen_date=chosen_date,
+        speech_ai_text=(
             f"{doctor_name} is available in the {', '.join(available_periods)} "
             f"on {fmt_date(chosen_date)}.\n{period_lines}\n"
-            "Which period would you prefer?"
+            "Which part of the day works better for you?"
         ),
     )
 
@@ -151,47 +173,110 @@ async def _handle_ask_date(
 ) -> dict:
     today  = date.today()
     parsed = await llm_extract(
-        system=LLM_DATE_SYSTEM.format(today=today.isoformat(), date_options=_build_date_options(available_dates)),
+        system=LLM_DATE_SYSTEM.format(today=today.isoformat()),
         human=user_text,
     )
 
     chosen_date = _parse_date(parsed.get("date"))
-    date_slots  = slots_for_date(all_slots, chosen_date) if chosen_date else []
 
-    if not date_slots:
-        if chosen_date is None:
-            date_lines = "\n".join(f"  - {fmt_date(d)}" for d in available_dates)
-            return update_state(
-                state,
-                slot_stage="ask_date",
-                ai_text=(
-                    f"I didn't quite catch that. {doctor_name} is available on:\n"
-                    f"{date_lines}\n"
-                    "Which date would you prefer?"
-                ),
-            )
-
-        alts = [d for d in available_dates if d != chosen_date]
-
-        if not alts:
-            return update_state(
-                state,
-                slot_stage="ask_date",
-                ai_text=f"I'm sorry, there are no available dates for {doctor_name} right now.",
-            )
-
-        alt_lines = "\n".join(f"  - {fmt_date(d)}" for d in alts[:3])
+    if chosen_date is None:
         return update_state(
             state,
-            slot_stage="ask_alternate_date",
-            ai_text=(
-                f"I'm sorry, {doctor_name} is not available on {fmt_date(chosen_date)}. "
-                f"The next available dates are:\n{alt_lines}\n"
-                "Would any of these work for you?"
+            slot_stage="ask_date",
+            speech_ai_text=(
+                "Sorry, I didn't quite catch that. "
+                "Did you have a particular date in mind? "
+                "You can say something like 'March 8' or 'next Monday'."
             ),
         )
 
-    return await _proceed_to_period(state, doctor_name, chosen_date, date_slots)
+    date_slots = slots_for_date(all_slots, chosen_date)
+
+    if date_slots:
+        return update_state(
+            state,
+            slot_stage="confirm_date",
+            slot_chosen_date=chosen_date,
+            speech_ai_text=(
+                f"Got it — {fmt_date(chosen_date)}. "
+                f"Just to confirm, you'd like to book with {doctor_name} on that date. Is that correct?"
+            ),
+        )
+
+    alts = _nearest_alt_dates(chosen_date, available_dates)
+
+    if not alts:
+        return update_state(
+            state,
+            slot_stage="ask_date",
+            speech_ai_text=f"I'm sorry, {doctor_name} has no upcoming availability right now.",
+        )
+
+    alt_lines = "\n".join(f"  - {fmt_date(d)}" for d in alts)
+    return update_state(
+        state,
+        slot_stage="ask_alternate_date",
+        speech_ai_text=(
+            f"Unfortunately {doctor_name} isn't available on {fmt_date(chosen_date)}. "
+            f"The nearest available dates are:\n{alt_lines}\n"
+            "Would any of those work for you?"
+        ),
+    )
+
+
+async def _handle_confirm_date(
+    state: dict, user_text: str, doctor_name: str, all_slots: list[dict], available_dates: list[date]
+) -> dict:
+    chosen_date: date = state.get("slot_chosen_date")
+
+    parsed    = await llm_extract(system=LLM_CONFIRM_SYSTEM, human=user_text)
+    confirmed = parsed.get("confirmed")
+
+    if confirmed is True:
+        date_slots = slots_for_date(all_slots, chosen_date)
+        return await _proceed_to_period(state, doctor_name, chosen_date, date_slots)
+
+    today  = date.today()
+    parsed2 = await llm_extract(
+        system=LLM_DATE_SYSTEM.format(today=today.isoformat()),
+        human=user_text,
+    )
+    new_date = _parse_date(parsed2.get("date"))
+
+    if new_date and new_date != chosen_date:
+        date_slots = slots_for_date(all_slots, new_date)
+
+        if date_slots:
+            return update_state(
+                state,
+                slot_stage="confirm_date",
+                slot_chosen_date=new_date,
+                speech_ai_text=(
+                    f"Got it — {fmt_date(new_date)}. "
+                    f"Confirming with {doctor_name} on that date. Is that correct?"
+                ),
+            )
+
+        alts = _nearest_alt_dates(new_date, available_dates)
+        alt_lines = "\n".join(f"  - {fmt_date(d)}" for d in alts)
+        return update_state(
+            state,
+            slot_stage="ask_alternate_date",
+            speech_ai_text=(
+                f"Unfortunately {doctor_name} isn't available on {fmt_date(new_date)}. "
+                f"The nearest available dates are:\n{alt_lines}\n"
+                "Would any of those work for you?"
+            ),
+        )
+
+    return update_state(
+        state,
+        slot_stage="ask_date",
+        slot_chosen_date=None,
+        slot_chosen_period=None,
+        slot_available_list=None,
+        speech_ai_text=f"No problem! What date would you prefer with {doctor_name}?",
+    )
 
 
 async def _handle_ask_alternate_date(
@@ -199,7 +284,10 @@ async def _handle_ask_alternate_date(
 ) -> dict:
     today  = date.today()
     parsed = await llm_extract(
-        system=LLM_ALTERNATE_DATE_SYSTEM.format(today=today.isoformat(), date_options=_build_date_options(available_dates)),
+        system=LLM_ALTERNATE_DATE_SYSTEM.format(
+            today=today.isoformat(),
+            date_options=_build_date_options(available_dates),
+        ),
         human=user_text,
     )
 
@@ -207,24 +295,32 @@ async def _handle_ask_alternate_date(
     date_slots  = slots_for_date(all_slots, chosen_date) if chosen_date else []
 
     if not date_slots:
-        all_date_lines = "\n".join(f"  - {fmt_date(d)}" for d in available_dates)
+        date_lines = "\n".join(f"  - {fmt_date(d)}" for d in available_dates)
         return update_state(
             state,
             slot_stage="ask_alternate_date",
-            ai_text=(
-                f"No problem. Here are all available dates for {doctor_name}:\n"
-                f"{all_date_lines}\n"
-                "Please choose one that suits you."
+            speech_ai_text=(
+                f"No problem. Here are all the dates {doctor_name} is available:\n"
+                f"{date_lines}\n"
+                "Which one would you like?"
             ),
         )
 
-    return await _proceed_to_period(state, doctor_name, chosen_date, date_slots)
+    return update_state(
+        state,
+        slot_stage="confirm_date",
+        slot_chosen_date=chosen_date,
+        speech_ai_text=(
+            f"Got it — {fmt_date(chosen_date)}. "
+            f"Just to confirm, you'd like to book with {doctor_name} on that date. Is that correct?"
+        ),
+    )
 
 
 async def _handle_ask_period(
     state: dict, user_text: str, doctor_name: str, all_slots: list[dict]
 ) -> dict:
-    chosen_date: date = state.get("chosen_date")
+    chosen_date: date = state.get("slot_chosen_date")
     date_slots        = slots_for_date(all_slots, chosen_date)
     periods           = periods_on_date(date_slots)
     available_periods = list(periods.keys())
@@ -240,8 +336,9 @@ async def _handle_ask_period(
         return update_state(
             state,
             slot_stage="ask_period",
-            ai_text=(
-                f"I'm sorry, {doctor_name} is not available in the {chosen_period or 'selected'} "
+            speech_ai_text=(
+                f"Sorry, {doctor_name} isn't available "
+                f"{'in the ' + chosen_period + ' ' if chosen_period else ''}"
                 f"on {fmt_date(chosen_date)}. "
                 f"Available periods are:\n{period_lines}\n"
                 "Which would you prefer?"
@@ -253,11 +350,11 @@ async def _handle_ask_period(
     return update_state(
         state,
         slot_stage="ask_slot",
-        chosen_period=chosen_period,
-        available_slots_list=period_slots,
-        ai_text=(
-            f"Here are the available {chosen_period} slots on {fmt_date(chosen_date)} "
-            f"for {doctor_name}:\n{slot_lines}\n"
+        slot_chosen_period=chosen_period,
+        slot_available_list=period_slots,
+        speech_ai_text=(
+            f"Here are the {chosen_period} slots available on {fmt_date(chosen_date)} "
+            f"with {doctor_name}:\n{slot_lines}\n"
             "Which time works best for you?"
         ),
     )
@@ -266,8 +363,8 @@ async def _handle_ask_period(
 async def _handle_ask_slot(
     state: dict, user_text: str, doctor_name: str, all_slots: list[dict]
 ) -> dict:
-    period_slots: list = state.get("available_slots_list", [])
-    chosen_date: date  = state.get("chosen_date")
+    period_slots: list = state.get("slot_available_list", [])
+    chosen_date: date  = state.get("slot_chosen_date")
 
     parsed  = await llm_extract(
         system=LLM_SLOT_SYSTEM.format(slots_context=_build_slot_context(period_slots)),
@@ -283,20 +380,21 @@ async def _handle_ask_slot(
             return update_state(
                 state,
                 slot_stage="ask_slot",
-                ai_text=(
-                    f"I'm sorry, there are no other slots available for {doctor_name}. "
+                speech_ai_text=(
+                    f"There are no other slots available for {doctor_name} right now. "
                     f"The available times on {fmt_date(chosen_date)} are:\n{slot_lines}\n"
                     "Would any of these work?"
                 ),
             )
 
-        alt_date_slots = slots_for_date(all_slots, other_slots[0]["date"])
-        alt_lines      = "\n".join(f"  - {s['full_display']}" for s in alt_date_slots[:5])
+        next_dates     = sorted({s["date"] for s in other_slots})[:2]
+        alt_date_slots = [s for s in all_slots if s["date"] in next_dates][:5]
+        alt_lines      = "\n".join(f"  - {s['full_display']}" for s in alt_date_slots)
         return update_state(
             state,
             slot_stage="ask_alternate_slot",
-            available_slots_list=alt_date_slots[:5],
-            ai_text=(
+            slot_available_list=alt_date_slots,
+            speech_ai_text=(
                 f"No problem! Here are some alternative slots for {doctor_name}:\n"
                 f"{alt_lines}\n"
                 "Would any of these work for you?"
@@ -304,70 +402,84 @@ async def _handle_ask_slot(
         )
 
     matched = next((s for s in period_slots if s["id"] == int(slot_id)), period_slots[0])
-    return update_state(state, slot_stage="ready_to_book", selected_slot=matched)
+    return update_state(
+        state,
+        slot_stage="ready_to_book",
+        slot_selection_completed=True,
+        slot_selected=matched,
+    )
 
 
 async def _handle_ask_alternate_slot(
     state: dict, user_text: str, doctor_name: str, all_slots: list[dict], available_dates: list[date]
 ) -> dict:
-    period_slots: list = state.get("available_slots_list", [])
+    period_slots: list = state.get("slot_available_list", [])
 
     parsed  = await llm_extract(
-        system=LLM_ALTERNATE_SLOT_SYSTEM.format(slots_context=_build_slot_context(period_slots, use_full_display=True)),
+        system=LLM_ALTERNATE_SLOT_SYSTEM.format(
+            slots_context=_build_slot_context(period_slots, use_full_display=True)
+        ),
         human=user_text,
     )
     slot_id = parsed.get("slot_id")
 
     if not slot_id:
-        date_lines = "\n".join(f"  - {fmt_date(d)}" for d in available_dates)
         return update_state(
             state,
             slot_stage="ask_date",
-            chosen_date=None,
-            chosen_period=None,
-            available_slots_list=None,
-            ai_text=(
-                f"Let's start over. {doctor_name} is available on:\n{date_lines}\n"
-                "Which date would you like?"
-            ),
+            slot_chosen_date=None,
+            slot_chosen_period=None,
+            slot_available_list=None,
+            speech_ai_text=f"No worries! Let's try again — what date works best for you with {doctor_name}?",
         )
 
     matched = next((s for s in period_slots if s["id"] == int(slot_id)), period_slots[0])
-    return update_state(state, slot_stage="ready_to_book", selected_slot=matched)
+    return update_state(
+        state,
+        slot_stage="ready_to_book",
+        slot_selection_completed=True,
+        slot_selected=matched,
+    )
 
 
-# ── Main node ─────────────────────────────────────────────────────────────────
 async def slot_selection_node(state: dict) -> dict:
     print("[slot_selection_node] -----------------------------")
 
-    if state.get("booked_slot_id"):
-        return state
+    if state.get("slot_booked_id"):
+        return {**state, "slot_selection_completed": True}
 
-    doctor_id:   int = state.get("confirmed_doctor_id")
-    doctor_name: str = state.get("confirmed_doctor_name", "the doctor")
-    user_text:   str = (state.get("user_text") or "").strip()
+    doctor_id:   int = state.get("doctor_confirmed_id")
+    doctor_name: str = state.get("doctor_confirmed_name", "the doctor")
+    user_text:   str = (state.get("speech_user_text") or "").strip()
     slot_stage:  str = state.get("slot_stage")
 
     all_slots = await fetch_all_slots(doctor_id)
 
     if not all_slots:
-        return update_state(state, ai_text=NO_SLOTS_RESPONSE.format(doctor_name=doctor_name))
+        return update_state(
+            state,
+            slot_selection_completed=False,
+            speech_ai_text=NO_SLOTS_RESPONSE.format(doctor_name=doctor_name),
+        )
 
     available_dates = sorted({s["date"] for s in all_slots})
 
     if slot_stage is None:
-        date_lines = "\n".join(f"  - {fmt_date(d)}" for d in available_dates)
         return update_state(
             state,
             slot_stage="ask_date",
-            ai_text=(
-                f"{doctor_name} is available on the following dates:\n{date_lines}\n"
-                "Which date would you prefer?"
+            slot_selection_completed=False,
+            speech_ai_text=(
+                f"Great! Now let's find a good time with {doctor_name}. "
+                f"What date were you thinking?"
             ),
         )
 
     if slot_stage == "ask_date":
         return await _handle_ask_date(state, user_text, doctor_name, all_slots, available_dates)
+
+    if slot_stage == "confirm_date":
+        return await _handle_confirm_date(state, user_text, doctor_name, all_slots, available_dates)
 
     if slot_stage == "ask_alternate_date":
         return await _handle_ask_alternate_date(state, user_text, doctor_name, all_slots, available_dates)
@@ -382,3 +494,5 @@ async def slot_selection_node(state: dict) -> dict:
         return await _handle_ask_alternate_slot(state, user_text, doctor_name, all_slots, available_dates)
 
     return state
+
+

@@ -15,13 +15,12 @@ SERVICE_INTENT_PROMPT = """
 
 async def service_intent_node(state: dict) -> dict:
     
-    user_text = state.get("user_text")
+    user_text = state.get("speech_user_text")
 
-    # First turn → Ask what service they want
     if not user_text:
         return {
             **state,
-            "ai_text": "Hi there! This is Front desk Assistance calling from iClinic. We noticed an appointment request come in through our website. How can I help you today? Would you like to book an appointment or cancel an appointment?",
+            "speech_ai_text": "Hi there! This is Front desk Assistance calling from iClinic. We noticed an appointment request come in through our website. How can I help you today? Would you like to book an appointment or cancel an appointment?",
             "service_type": None,
         }
 
@@ -38,24 +37,22 @@ async def service_intent_node(state: dict) -> dict:
         if service not in ["booking", "cancellation"]:
             return {
                 **state,
-                "ai_text": "Sorry, I did not understand. Do you want to book an appointment or cancel one?",
+                "speech_ai_text": "Sorry, I did not understand. Do you want to book an appointment or cancel one?",
                 "service_type": None,
             }
-        patient_id = state.get("patient_id")
+
+        patient_id = state.get("identity_patient_id")
 
         return {
             **state,
-            "patient_id": patient_id,
+            "identity_patient_id": patient_id,
             "service_type": service,
-            "ai_text": None,
+            "speech_ai_text": None,
         }
         
     except Exception as e:
         return {
             **state,
-            "ai_text": "Something went wrong. Please try again.",
-            "error": str(e),
+            "speech_ai_text": "Something went wrong. Please try again.",
+            "speech_error": str(e),
         }
-    
-
-    

@@ -18,7 +18,8 @@ async def register_user(user_data : UserCreate, db : AsyncSession = Depends(get_
         await create_user(db = db, user_data=user_data)
         return {"message": "User registered successfully"}
 
-    except IntegrityError:
+    except IntegrityError as e:
+        print("Integrity Error:", e.orig)
         raise HTTPException(
             status_code=400,
             detail="Email or phone number already exists"

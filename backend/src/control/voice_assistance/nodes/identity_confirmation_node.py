@@ -5,9 +5,9 @@ async def identity_confirmation_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     print("[identity_confirmation_node] -----------------------------")
 
-    patient_name: str = (state.get("user_name") or "").strip()
-    phone_number: str = (state.get("user_phone") or "").strip()
-    user_text: str = (state.get("user_text") or "").strip()
+    patient_name: str = (state.get("identity_user_name") or "").strip()
+    phone_number: str = (state.get("identity_user_phone") or "").strip()
+    user_text: str = (state.get("speech_user_text") or "").strip()
 
     if not patient_name:
         return state
@@ -45,9 +45,8 @@ async def identity_confirmation_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         **state,
-        "conversation_history": conversation_history,
-        "confirmed_user": confirmed,
-        "confirmation_done": confirmed or end_call,
-        "ai_text": sentence,
+        "clarify_conversation_history": conversation_history,
+        "identity_confirmed_user": confirmed,
+        "identity_confirmation_completed": confirmed or end_call,
+        "speech_ai_text": sentence,
     }
-

@@ -10,17 +10,18 @@ from src.control.voice_assistance.routes import (
 from .state import VoiceState
 from .nodes.call_init_node                import call_init_node
 from .nodes.stt_node                      import stt_node
-from .nodes.identity_confirmation_node    import identity_confirmation_node   
+from .nodes.identity_confirmation_node    import identity_confirmation_node
 from .nodes.clarify_node                  import clarify_node
 from .nodes.mapping_node                  import mapping_node
 from .nodes.tts_node                      import tts_node
 from .nodes.doctor_selection_node         import doctor_selection_node
 from .nodes.slot_selection_node           import slot_selection_node
 from .nodes.book_appointment_node         import book_appointment_node
-from .nodes.booking_confirmation_node     import booking_confirmation_node  
+from .nodes.booking_confirmation_node     import booking_confirmation_node
 from .nodes.service_intent_node           import service_intent_node
 from .nodes.cancel_appointment_node       import cancel_appointment_node
 from .nodes.cancel_confirmation_node      import cancel_confirmation_node
+
 
 def build_call_graph():
     workflow = StateGraph(VoiceState)
@@ -34,45 +35,47 @@ def build_response_graph():
 
     workflow = StateGraph(VoiceState)
 
-    # nodes 
     workflow.add_node("stt",                  stt_node)
+    workflow.add_node("service_intent",       service_intent_node)
     workflow.add_node("identity_confirmation",identity_confirmation_node)
     workflow.add_node("clarify",              clarify_node)
     workflow.add_node("mapping",              mapping_node)
     workflow.add_node("doctor_selection",     doctor_selection_node)
-    workflow.add_node("service_intent",       service_intent_node)
-    workflow.add_node("cancel_appointment",   cancel_appointment_node)
     workflow.add_node("slot_selection",       slot_selection_node)
     workflow.add_node("book_appointment",     book_appointment_node)
     workflow.add_node("booking_confirmation", booking_confirmation_node)
-    workflow.add_node("cancel_confirmation", cancel_confirmation_node)
+    workflow.add_node("cancel_appointment",   cancel_appointment_node)
+    workflow.add_node("cancel_confirmation",  cancel_confirmation_node)
     workflow.add_node("tts",                  tts_node)
 
-    # entry
     workflow.set_entry_point("stt")
 
     workflow.add_conditional_edges(
         "stt",
         route_after_stt,
         {
-            "service_intent": "service_intent",
+            "service_intent":        "service_intent",
             "identity_confirmation": "identity_confirmation",
-            "clarify": "clarify",
-            "cancel_appointment": "cancel_appointment",
+            "clarify":               "clarify",
+            "mapping":               "mapping",
+            "doctor_selection":      "doctor_selection",
+            "slot_selection":        "slot_selection",
+            "book_appointment":      "book_appointment",
+            "cancel_appointment":    "cancel_appointment",
+            "tts":                   "tts",
         }
     )
-        
-   
+
     workflow.add_conditional_edges(
-    "service_intent",
-    route_after_service_intent,
-    {
-        "identity_confirmation": "identity_confirmation",
-        "cancel_appointment": "cancel_appointment",
-        "tts": "tts",  # fallback if unclear
-    },
-)
-    
+        "service_intent",
+        route_after_service_intent,
+        {
+            "identity_confirmation": "identity_confirmation",
+            "cancel_appointment":    "cancel_appointment",
+            "tts":                   "tts",
+        },
+    )
+
     workflow.add_conditional_edges(
         "identity_confirmation",
         route_after_identity_confirmation,
@@ -99,10 +102,11 @@ def build_response_graph():
         {"book_appointment": "book_appointment", "tts": "tts"},
     )
 
-    workflow.add_edge("book_appointment","booking_confirmation")
+    workflow.add_edge("book_appointment",     "booking_confirmation")
     workflow.add_edge("booking_confirmation", "tts")
-    workflow.add_edge("cancel_appointment", "cancel_confirmation")
-    workflow.add_edge("cancel_confirmation", "tts")
-    workflow.add_edge("tts",END)
+    workflow.add_edge("cancel_appointment",   "cancel_confirmation")
+    workflow.add_edge("cancel_confirmation",  "tts")
+    workflow.add_edge("tts", END)
 
     return workflow.compile()
+

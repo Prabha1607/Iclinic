@@ -4,9 +4,19 @@ def route_after_stt(state: dict) -> str:
         return "service_intent"
 
     if state.get("service_type") == "booking":
-        if not state.get("confirmation_done"):
+        if not state.get("identity_confirmation_completed"):
             return "identity_confirmation"
-        return "clarify"
+        if not state.get("clarify_completed"):
+            return "clarify"
+        if not state.get("mapping_appointment_type_completed"):
+            return "mapping"
+        if not state.get("doctor_selection_completed"):
+            return "doctor_selection"
+        if not state.get("slot_selection_completed"):
+            return "slot_selection"
+        if not state.get("booking_appointment_completed"):
+            return "book_appointment"
+        return "tts"
 
     if state.get("service_type") == "cancellation":
         return "cancel_appointment"
@@ -15,12 +25,12 @@ def route_after_stt(state: dict) -> str:
 
 
 def route_after_identity_confirmation(state: dict) -> str:
-    
-    if not state.get("confirmation_done"):
+
+    if not state.get("identity_confirmation_completed"):
         return "tts"
-    if not state.get("confirmed_user"):
+    if not state.get("identity_confirmed_user"):
         return "tts"
-    if state.get("speak_final"):
+    if state.get("identity_speak_final"):
         return "tts"
     return "clarify"
 
@@ -39,23 +49,23 @@ def route_after_service_intent(state: dict) -> str:
 
 
 def route_after_clarify(state: dict) -> str:
-    
-    if state.get("emergency"):
+
+    if state.get("mapping_emergency"):
         return "tts"
-    if not state.get("clarify_done"):
+    if not state.get("clarify_completed"):
         return "tts"
     return "mapping"
 
 
 def route_after_doctor_selection(state: dict) -> str:
-    
-    if state.get("confirmed_doctor_id"):
+
+    if state.get("doctor_selection_completed") and state.get("doctor_confirmed_id"):
         return "slot_selection"
     return "tts"
 
+
 def route_after_slot_selection(state: dict) -> str:
-    
-    if state.get("slot_stage") == "ready_to_book":
+
+    if state.get("slot_selection_completed") and state.get("slot_stage") == "ready_to_book":
         return "book_appointment"
     return "tts"
-

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "../../../components/Header";
 import AppointmentWidget from "../../../components/AppointmentWidget";

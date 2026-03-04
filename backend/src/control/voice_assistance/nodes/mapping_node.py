@@ -4,7 +4,6 @@ from src.control.voice_assistance.prompts.mapping_node_prompt import SYSTEM_PROM
 from src.control.voice_assistance.models import get_llama1
 
 
-
 def _normalise(text: str) -> str:
     return text.strip().lower().replace(" ", "_").replace("-", "_")
 
@@ -87,18 +86,19 @@ Return JSON with key "intent" only."""
 async def mapping_node(state: dict) -> dict:
     print("[mapping_node] -----------------------------")
 
-    if state.get("emergency"):
+    if state.get("mapping_emergency"):
         return update_state(
             state,
-            intent="emergency",
-            appointment_type_id=None,
-            ai_text=EMERGENCY_RESPONSE,
+            mapping_intent="emergency",
+            mapping_appointment_type_id=None,
+            mapping_appointment_type_completed=True,
+            speech_ai_text=EMERGENCY_RESPONSE,
         )
 
     appointment_types: dict = state.get("appointment_types") or {}
     print("appointment_types:", appointment_types)
 
-    conversation_history: list[dict] = list(state.get("conversation_history") or [])
+    conversation_history: list[dict] = list(state.get("clarify_conversation_history") or [])
     conversation_transcript = _build_conversation_transcript(conversation_history)
 
     intent = DEFAULT_INTENT if not conversation_transcript else await _classify_intent(conversation_transcript, appointment_types)
@@ -111,10 +111,11 @@ async def mapping_node(state: dict) -> dict:
 
     return update_state(
         state,
-        intent=intent,
-        appointment_type_id=appointment_type_id,
+        mapping_intent=intent,
+        mapping_appointment_type_id=appointment_type_id,
         appointment_types=appointment_types,
-        ai_text=(
+        mapping_appointment_type_completed=True,
+        speech_ai_text=(
             f"Based on what you've described, I'll book a {friendly_name} appointment for you. "
             f"You'll receive a confirmation shortly."
         ),

@@ -5,67 +5,75 @@ from typing_extensions import TypedDict
 class VoiceState(TypedDict):
 
     # ── Call metadata ──────────────────────────────────────────────────────────
-    to_number:   Optional[str]
-    call_sid:    Optional[str]
-    user_token:  Optional[str]
+    call_to_number:   Optional[str]
+    call_sid:         Optional[str]
+    call_user_token:  Optional[str]
 
     # ── Per-turn speech ────────────────────────────────────────────────────────
-    user_text:   Optional[str]
-    ai_text:     Optional[str]
-    error:       Optional[str]
+    speech_user_text:   Optional[str]
+    speech_ai_text:     Optional[str]
+    speech_error:       Optional[str]
 
     # ── User identity ──────────────────────────────────────────────────────────
-    user_name:   Optional[str]
-    user_email:  Optional[str]
-    user_phone:  Optional[str]
-    patient_id:  Optional[int]
+    identity_user_name:   Optional[str]
+    identity_user_email:  Optional[str]
+    identity_user_phone:  Optional[str]
+    identity_patient_id:  Optional[int]
 
     # ── Confirmation stage ─────────────────────────────────────────────────────
-    confirmation_done:  Optional[bool]
-    confirmed_user:     Optional[bool]
-    confirm_stage:      Optional[str]
-    speak_final:        Optional[bool]
-    phone_verified:     Optional[bool]
+    identity_confirmation_completed: Optional[bool]
+    identity_confirmed_user:         Optional[bool]
+    identity_confirm_stage:          Optional[str]
+    identity_speak_final:            Optional[bool]
+    identity_phone_verified:         Optional[bool]
 
     # ── Clarify / intake stage ─────────────────────────────────────────────────
-    clarify_step:     Optional[int]
-    conversation_history: Optional[List[Dict[str, str]]] 
-    covered_topics:   Optional[List[str]]
-    clarify_done:     Optional[bool]
-    symptoms_text:    Optional[str]
+    clarify_step:             Optional[int]
+    clarify_conversation_history: Optional[List[Dict[str, str]]]
+    clarify_covered_topics:       Optional[List[str]]
+    clarify_completed:            Optional[bool]
+    clarify_symptoms_text:        Optional[str]
 
     # ── Mapping ────────────────────────────────────────────────────────────────
-    intent:               Optional[str]
-    emergency:            Optional[bool]
-    appointment_type_id:  Optional[int]
+    mapping_intent:              Optional[str]
+    mapping_emergency:           Optional[bool]
+    mapping_appointment_type_completed: Optional[bool]
+    mapping_appointment_type_id: Optional[int]
 
     # ── Doctor selection ───────────────────────────────────────────────────────
-    doctors_list:             Optional[List[Dict]]
-    doctor_selection_pending: Optional[bool]
-    confirmed_doctor_id:      Optional[int]
-    confirmed_doctor_name:    Optional[str]
+    doctor_list:                  Optional[List[Dict]]
+    doctor_selection_pending:     Optional[bool]
+    doctor_selection_completed:   Optional[bool]
+    doctor_confirmed_id:          Optional[int]
+    doctor_confirmed_name:        Optional[str]
 
     # ── Slot selection ─────────────────────────────────────────────────────────
-    slot_stage:            Optional[str]        
-    chosen_date:           Optional[str]        
-    chosen_period:         Optional[str]        
-    available_slots_list:  Optional[List[Dict]]
-    selected_slot:         Optional[Dict]       
-    booked_slot_id:        Optional[int]
-    booked_slot_display:   Optional[str]
+    slot_stage:               Optional[str]
+    slot_selection_completed: Optional[bool]
+    slot_chosen_date:         Optional[str]
+    slot_chosen_period:       Optional[str]
+    slot_available_list:      Optional[List[Dict]]
+    slot_selected:            Optional[Dict]
+    slot_booked_id:           Optional[int]
+    slot_booked_display:      Optional[str]
 
-    # ── Appointment context (extracted by LLM in book_appointment_node) ────────
-    reason_for_visit:  Optional[str]
-    notes:             Optional[str]
-    instructions:      Optional[str]
+    # ── Appointment booking ────────────────────────────────────────────────────
+    booking_appointment_completed: Optional[bool]
+    booking_reason_for_visit:      Optional[str]
+    booking_notes:                 Optional[str]
+    booking_instructions:          Optional[str]
 
-    service_type: Optional[str]  # "Booking" or "Cancellation"
+    # ── Service type ───────────────────────────────────────────────────────────
+    service_type: Optional[str]  
+
+    # ── Cancellation Flow ──────────────────────────────────────────────────────
+    cancellation_stage:            Optional[str]   
+    cancellation_appointment:      Optional[Dict]
+    cancellation_complete:         Optional[bool]
+
+    # ── Misc ───────────────────────────────────────────────────────────────────
+    appointment_types:      Optional[Dict[int, List[str]]]
+    appointments_list:      Optional[List[Dict]]
 
 
-    # ── Cancellation Flow ────────────────────────────────────────────────
-    cancellation_stage: Optional[str]   # None | ask_confirm | done
-    appointment_to_cancel: Optional[Dict]
-    cancellation_complete: Optional[bool]
-
-    appointment_types : Optional[Dict[int, List[str]]]
-    appointments_list: Optional[List[Dict]]
+    
