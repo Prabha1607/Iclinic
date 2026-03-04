@@ -4,8 +4,9 @@ import App from "../App";
 import HomePage from "../features/home/components/HomePage";
 import Login from "../features/auth/components/Login";
 import Register from "../features/auth/components/Register";
-import BookingPage from "../features/booking/components/BookingPage";
+import PatientDashboard from "../features/patient/components/PatientDashboard";
 import RequireAuth from "../components/RequireAuth";
+import RequireRole from "../components/RequireRole";
 
 const router = createBrowserRouter([
   {
@@ -25,10 +26,12 @@ const router = createBrowserRouter([
         element: <Register />,
       },
       {
-        path: "booking",
+        path: "dashboard",
         element: (
           <RequireAuth>
-            <BookingPage />
+            <RequireRole allowedRoles={[1]}>
+              <PatientDashboard />
+            </RequireRole>
           </RequireAuth>
         ),
       },

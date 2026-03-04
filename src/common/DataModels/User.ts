@@ -13,7 +13,6 @@ export interface RegisterRequest {
   password: string;
 }
 
-
 export interface AuthResponse {
     access_token : string;
     msg : string;
@@ -22,6 +21,8 @@ export interface AuthResponse {
 export interface AuthState {
     token : string | null;
     isAuthenticated : boolean;
+    userId : number | null;
+    roleId : number | null;
 }
 
 export interface Role {

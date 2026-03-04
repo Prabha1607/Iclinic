@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import Header from "../../../components/Header";
 import AppointmentWidget from "../../../components/AppointmentWidget";
@@ -254,7 +253,7 @@ export default function HomePage() {
                 ),
                 bg: "#eef2ff",
                 title: "Request a Call",
-                desc: "Click 'Can I help you book an appointment?' on any page. Enter your phone number — that's it.",
+                desc: "Click the booking button at the bottom right, enter your phone number — that's all you need to do.",
               },
               {
                 step: "02",
