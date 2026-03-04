@@ -56,6 +56,7 @@ async def login_user(request: Request,response:Response,user_data : UserLogin,db
             "id": user.id,
             "email": user.email,
             "name" : user.first_name + " " + user.last_name,
+            "role_id": user.role_id,
             "phone_number": user.phone_no
         }
         
@@ -126,8 +127,9 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
     email = payload.get("email")
     name = payload.get("name")
     phone_number = payload.get("phone_number")      
+    role_id = payload.get("role_id")
     
-    token_data = {"email": email, "id": user_id, "name": name, "phone_number": phone_number}
+    token_data = {"email": email, "id": user_id, "name": name, "phone_number": phone_number, "role_id": role_id}
     access_data = await create_access_token(token_data)
 
     response.set_cookie(key="access_token", value=access_data[0], httponly=True, samesite="lax", secure=False, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)

@@ -5,10 +5,12 @@ import Logout from "../features/auth/components/Logout";
 
 export default function Header() {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const roleId = useAppSelector((state) => state.auth.roleId);
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+  const isPatient = isAuthenticated && roleId === 1;
 
   return (
     <>
@@ -52,6 +54,24 @@ export default function Header() {
             >
               Home
             </Link>
+
+            {/* Dashboard — only for patients */}
+            {isPatient && (
+              <Link
+                to="/dashboard"
+                className={`text-sm font-medium px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 ${
+                  isActive("/dashboard")
+                    ? "bg-[#eef2ff] text-[#3b5bfc]"
+                    : "text-slate-600 hover:text-[#3b5bfc] hover:bg-[#f5f7ff]"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                My Appointments
+              </Link>
+            )}
           </nav>
 
           {/* Right Side — desktop */}
@@ -107,6 +127,23 @@ export default function Header() {
               </svg>
               Home
             </Link>
+
+            {/* Dashboard — mobile, patients only */}
+            {isPatient && (
+              <Link
+                to="/dashboard"
+                onClick={() => setMenuOpen(false)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive("/dashboard") ? "bg-[#eef2ff] text-[#3b5bfc]" : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                My Appointments
+              </Link>
+            )}
 
             {isAuthenticated ? (
               <div className="pt-1 border-t border-slate-100">

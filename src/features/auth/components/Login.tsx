@@ -27,7 +27,7 @@ export default function Login() {
     try {
       const response = await loginUser(form);
       dispatch(setCredentials(response.access_token));
-      navigate("/booking");
+      navigate("/");
     } catch (err: any) {
       const message =
         err?.response?.data?.detail?.detail ||

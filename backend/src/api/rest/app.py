@@ -1,4 +1,5 @@
 from fastapi import APIRouter, FastAPI
+from src.api.rest.routes import appointment_booking
 from src.api.rest.routes import auth
 from src.api.rest.routes import voice
 from src.api.rest.routes import users
@@ -25,5 +26,6 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(router=auth.router)
 api_router.include_router(router = voice.router)
 api_router.include_router(router = users.router)
+api_router.include_router(router = appointment_booking.router)
 
 app.include_router(router=api_router)
