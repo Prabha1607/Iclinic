@@ -8,6 +8,9 @@ from src.api.rest.dependencies import get_current_user, get_db
 from src.core.services.appointment_type import get_appointment_types
 from src.control.voice_assistance.session_store import get_session, set_session, delete_session
 from src.core.services.user import get_user
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/voice", tags=["Voice Assistance"])
 
@@ -71,15 +74,18 @@ async def make_call(
     try:
         result = await call_graph.ainvoke(fresh_state(call_to_number=to_number))
     except Exception as e:
+        logger.error("Failed to place call", extra={"to_number": to_number, "error": str(e)})
         return {"status": "error", "detail": "Failed to place call"}
 
     if result.get("speech_error"):
+        logger.error("Call graph speech error", extra={"to_number": to_number, "error": result["speech_error"]})
         return {"status": "error", "detail": result["speech_error"]}
 
     try:
         user              = await get_user(current_user.get("email"), db)
         appointment_types = await get_appointment_types(db)
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to fetch required data for call", extra={"error": str(e)})
         return {"status": "error", "detail": "Failed to fetch required data"}
 
     call_sid = result.get("call_sid")
@@ -95,10 +101,13 @@ async def make_call(
             identity_user_phone=current_user.get("phone_number"),
         )
         set_session(call_sid, session_state)
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to initialize session", extra={"call_sid": call_sid, "error": str(e)})
         return {"status": "error", "detail": "Failed to initialize session"}
 
+    logger.info("Call placed successfully", extra={"call_sid": call_sid, "to_number": to_number})
     return {"status": "call_placed", "call_sid": call_sid}
+
 
 @router.post("/voice-response")
 async def voice_response(request: Request):
@@ -106,7 +115,8 @@ async def voice_response(request: Request):
         form     = await request.form()
         call_sid = form.get("CallSid", "unknown")
         speech   = form.get("SpeechResult")
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to parse voice response form", extra={"error": str(e)})
         return Response(
             content=_build_twiml(FALLBACK_TEXT, False, True),
             media_type="application/xml",
@@ -118,7 +128,8 @@ async def voice_response(request: Request):
             call_sid=call_sid
         )
         state["speech_user_text"] = speech.strip() if speech else None
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to load session", extra={"call_sid": call_sid, "error": str(e)})
         return Response(
             content=_build_twiml(FALLBACK_TEXT, False, True),
             media_type="application/xml",
@@ -126,12 +137,16 @@ async def voice_response(request: Request):
 
     try:
         result = await response_graph.ainvoke(state)
-    except Exception:
+    except Exception as e:
+        logger.error("Response graph failed", extra={"call_sid": call_sid, "error": str(e)})
         result = {**state, "speech_ai_text": FALLBACK_TEXT}
 
     ai_text       = result.get("speech_ai_text") or NO_SPEECH_TEXT
     emergency     = result.get("mapping_emergency", False)
     call_complete = _is_call_complete(result)
+
+    if emergency:
+        logger.warning("Emergency call detected", extra={"call_sid": call_sid})
 
     try:
         if call_complete:
@@ -145,4 +160,6 @@ async def voice_response(request: Request):
         content=_build_twiml(ai_text, emergency, call_complete),
         media_type="application/xml",
     )
+
+
 
