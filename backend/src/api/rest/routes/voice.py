@@ -68,37 +68,61 @@ async def make_call(
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ):
-    result = await call_graph.ainvoke(fresh_state(call_to_number=to_number))
+    try:
+        result = await call_graph.ainvoke(fresh_state(call_to_number=to_number))
+    except Exception as e:
+        return {"status": "error", "detail": "Failed to place call"}
 
     if result.get("speech_error"):
         return {"status": "error", "detail": result["speech_error"]}
 
-    user              = await get_user(current_user.get("email"), db)
-    appointment_types = await get_appointment_types(db)
-    call_sid          = result["call_sid"]
+    try:
+        user              = await get_user(current_user.get("email"), db)
+        appointment_types = await get_appointment_types(db)
+    except Exception:
+        return {"status": "error", "detail": "Failed to fetch required data"}
 
-    session_state = fresh_state(
-        call_to_number=to_number,
-        call_sid=call_sid,
-        identity_patient_id=user.id,
-        appointment_types=_build_appointment_types(appointment_types),
-        identity_user_name=current_user.get("name"),
-        identity_user_email=current_user.get("email"),
-        identity_user_phone=current_user.get("phone_number"),
-    )
-    set_session(call_sid, session_state)
+    call_sid = result.get("call_sid")
+
+    try:
+        session_state = fresh_state(
+            call_to_number=to_number,
+            call_sid=call_sid,
+            identity_patient_id=user.id,
+            appointment_types=_build_appointment_types(appointment_types),
+            identity_user_name=current_user.get("name"),
+            identity_user_email=current_user.get("email"),
+            identity_user_phone=current_user.get("phone_number"),
+        )
+        set_session(call_sid, session_state)
+    except Exception:
+        return {"status": "error", "detail": "Failed to initialize session"}
 
     return {"status": "call_placed", "call_sid": call_sid}
 
-
 @router.post("/voice-response")
 async def voice_response(request: Request):
-    form     = await request.form()
-    call_sid = form.get("CallSid", "unknown")
-    speech   = form.get("SpeechResult")
+    try:
+        form     = await request.form()
+        call_sid = form.get("CallSid", "unknown")
+        speech   = form.get("SpeechResult")
+    except Exception:
+        return Response(
+            content=_build_twiml(FALLBACK_TEXT, False, True),
+            media_type="application/xml",
+        )
 
-    state                     = get_session(call_sid) or fresh_state(call_to_number=form.get("To"), call_sid=call_sid)
-    state["speech_user_text"] = speech.strip() if speech else None
+    try:
+        state = get_session(call_sid) or fresh_state(
+            call_to_number=form.get("To"),
+            call_sid=call_sid
+        )
+        state["speech_user_text"] = speech.strip() if speech else None
+    except Exception:
+        return Response(
+            content=_build_twiml(FALLBACK_TEXT, False, True),
+            media_type="application/xml",
+        )
 
     try:
         result = await response_graph.ainvoke(state)
@@ -109,14 +133,16 @@ async def voice_response(request: Request):
     emergency     = result.get("mapping_emergency", False)
     call_complete = _is_call_complete(result)
 
-    if call_complete:
-        delete_session(call_sid)
-    else:
-        set_session(call_sid, result)
+    try:
+        if call_complete:
+            delete_session(call_sid)
+        else:
+            set_session(call_sid, result)
+    except Exception:
+        pass
 
     return Response(
         content=_build_twiml(ai_text, emergency, call_complete),
         media_type="application/xml",
     )
-
 

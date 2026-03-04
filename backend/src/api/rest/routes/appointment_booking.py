@@ -29,12 +29,11 @@ async def get_user_appointments(
 
         return appointments
 
-    except Exception as e:
+    except HTTPException:
+        raise
+
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail="Failed to fetch user appointments"
         )
-    
-
-
-    

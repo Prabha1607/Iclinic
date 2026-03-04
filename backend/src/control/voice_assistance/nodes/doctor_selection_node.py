@@ -99,18 +99,17 @@ async def _match_doctor_from_response(
 ) -> tuple[int, str]:
     doctors_context = _build_doctors_context(doctors)
 
-    llm = get_llama1()
-    response = await llm.ainvoke([
-        ("system", DOCTOR_MATCH_SYSTEM_PROMPT),
-        ("human", f"Doctors:\n{doctors_context}\n\nPatient intent: {intent}\nPatient said: {user_text}\n\nPick the best match."),
-    ])
-
     try:
+        llm = get_llama1()
+        response = await llm.ainvoke([
+            ("system", DOCTOR_MATCH_SYSTEM_PROMPT),
+            ("human", f"Doctors:\n{doctors_context}\n\nPatient intent: {intent}\nPatient said: {user_text}\n\nPick the best match."),
+        ])
         parsed = json.loads(clear_markdown(response.content.strip()))
         return int(parsed["doctor_id"]), str(parsed["doctor_name"])
     except Exception:
         return doctors[0]["id"], doctors[0]["name"]
-
+    
 
 async def doctor_selection_node(state: dict) -> dict:
     print("[doctor_selection_node] -----------------------------")
@@ -118,7 +117,15 @@ async def doctor_selection_node(state: dict) -> dict:
     if state.get("doctor_confirmed_id"):
         return {**state, "doctor_selection_completed": True}
 
-    doctors = await fetch_doctors(state.get("mapping_appointment_type_id") or -1)
+    try:
+        doctors = await fetch_doctors(state.get("mapping_appointment_type_id") or -1)
+    except Exception as e:
+        print(f"[doctor_selection_node] Failed to fetch doctors: {e}")
+        return {
+            **state,
+            "doctor_selection_completed": True,
+            "speech_ai_text": NO_DOCTORS_RESPONSE,
+        }
 
     if not doctors:
         return {
@@ -141,5 +148,7 @@ async def doctor_selection_node(state: dict) -> dict:
     print(f"[doctor_selection_node] selected doctor: id={doctor_id}, name={doctor_name}")
 
     return _confirmed_doctor_state(state, doctor_id, doctor_name)
+
+
 
 

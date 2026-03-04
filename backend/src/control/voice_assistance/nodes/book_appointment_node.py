@@ -40,21 +40,18 @@ def _build_history_text(conversation_history: list | str) -> str:
 async def extract_appointment_context(conversation_history: list | str) -> dict:
     history_text = _build_history_text(conversation_history)
 
-    llm = get_llama1()
-
-    response = await llm.ainvoke([
-        ("system", EXTRACT_CONTEXT_PROMPT),
-        ("human", f"Conversation:\n{history_text}")
-    ])
-
     try:
+        llm = get_llama1()
+        response = await llm.ainvoke([
+            ("system", EXTRACT_CONTEXT_PROMPT),
+            ("human", f"Conversation:\n{history_text}")
+        ])
         parsed = json.loads(clear_markdown(response.content.strip()))
         return parsed
 
     except Exception:
-        print("[LLM PARSE ERROR] Returning DEFAULT_CONTEXT")
         return DEFAULT_CONTEXT
-
+    
 
 async def book_appointment_node(state: dict) -> dict:
     print("\n[book_appointment_node] --------------------------------")
@@ -119,7 +116,11 @@ async def book_appointment_node(state: dict) -> dict:
 
     except Exception as e:
         traceback.print_exc()
-        raise
+        return update_state(
+            state,
+            booking_appointment_completed=False,
+            speech_ai_text="Sorry, I was unable to book your appointment. Please try again.",
+        )
 
     confirmation_text = (
         f"Perfect! Your appointment with {doctor_name} is confirmed for "

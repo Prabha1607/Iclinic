@@ -17,7 +17,6 @@ from src.control.voice_assistance.prompts.cancel_appointment_node_prompt import 
     NO_APPOINTMENTS_RESPONSE,
 )
 
-
 async def _fetch_upcoming_appointments(user_id: int) -> list:
     now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
@@ -26,7 +25,7 @@ async def _fetch_upcoming_appointments(user_id: int) -> list:
             .join(AppointmentType, Appointment.appointment_type_id == AppointmentType.id)
             .where(
                 and_(
-                    Appointment.patient_id == user_id,
+                    Appointment.user_id == user_id,   # ✅ FIXED HERE
                     Appointment.status == AppointmentStatus.SCHEDULED,
                     Appointment.is_active == True,
                     Appointment.scheduled_date >= date_type.today(),

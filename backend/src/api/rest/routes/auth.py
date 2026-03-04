@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix = "/auth",tags=["Authentication"])
 
+
 @router.post("/register")
 async def register_user(user_data : UserCreate, db : AsyncSession = Depends(get_db)):
 
@@ -18,38 +19,38 @@ async def register_user(user_data : UserCreate, db : AsyncSession = Depends(get_
         await create_user(db = db, user_data=user_data)
         return {"message": "User registered successfully"}
 
-    except IntegrityError as e:
-        print("Integrity Error:", e.orig)
+    except IntegrityError:
         raise HTTPException(
             status_code=400,
             detail="Email or phone number already exists"
         )
 
-    except Exception as e:
-        print(str(e))
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Something went wrong"
         )
 
+
 @router.post("/login")
 async def login_user(request: Request,response:Response,user_data : UserLogin,db : AsyncSession = Depends(get_db)):
-    try :
+
+    try:
         identifier = user_data.identifier
         password = user_data.password
 
         user = await get_user(identifier, db)
-        
+
         if not user:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid credentials"
             )
-        
+
         if not verify_password(password,user.password):
-                raise HTTPException(
+            raise HTTPException(
                 status_code=401,
-                detail="Invalid credentials password not mached"
+                detail="Invalid credentials"
             )
 
         payload = {
@@ -59,31 +60,58 @@ async def login_user(request: Request,response:Response,user_data : UserLogin,db
             "role_id": user.role_id,
             "phone_number": user.phone_no
         }
-        
+
         access_data = await create_access_token(payload=payload)
         refresh_data = await create_refresh_token(payload=payload)
-        
+
         access_token = access_data[0]
         refresh_token = refresh_data[0]
         refresh_token_id = refresh_data[1]
-        
+
         await insert_refresh_token(db, refresh_token_id)
-        response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax",secure=False,max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES*60) 
-        response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, samesite="lax",secure=False,max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86000) 
+
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES*60
+        )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86000
+        )
 
         return {"message": "Authentication Successfull!!!","access_token": access_token}
-    
-    except Exception as e:
-        raise HTTPException(status_code=400, detail={"msg": "unexpected error occured", "detail": str(e)})
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Unexpected error occurred"
+        )
+
 
 @router.get("/logout")
 async def logout(request: Request,response:Response,db: AsyncSession =  Depends(get_db)):
+
     try:
         refresh_token = request.cookies.get("refresh_token")
-        # print(refresh_token)
+
         if not refresh_token:
-            raise HTTPException(status_code=400 , detail = "Refres Token missing")
-        
+            raise HTTPException(
+                status_code=400,
+                detail="Refresh Token missing"
+            )
+
         payload = await verify_refresh_token(refresh_token)
 
         if payload is None:
@@ -91,48 +119,77 @@ async def logout(request: Request,response:Response,db: AsyncSession =  Depends(
                 status_code=400,
                 detail="Invalid or expired refresh token"
             )
+
         jti = payload.get("jti")
-        # print(payload)
 
         await make_it_revoked(db=db , jti=jti)
 
         response.delete_cookie("refresh_token")
         response.delete_cookie("access_token")
-        
+
         return {"message": "Logout successful"}
-    
-    except Exception as e:  
-        print(str(e))
-        raise HTTPException(status_code=400, detail="Invalid token")
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Logout failed"
+        )
+
 
 @router.post("/refresh")
 async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    
-    refresh_token = request.cookies.get("refresh_token")
-    
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
-    
-    payload = await verify_refresh_token(refresh_token)
 
-    if payload is None:
-        raise HTTPException(status_code=403, detail="Invalid refresh token")
-    
-    jti = payload.get("jti")
-   
-    if await is_revoked(jti=jti, db=db):
-        raise HTTPException(status_code=403, detail="Refresh token revoked")
+    try:
+        refresh_token = request.cookies.get("refresh_token")
 
-    user_id = payload.get("id")
-    email = payload.get("email")
-    name = payload.get("name")
-    phone_number = payload.get("phone_number")      
-    role_id = payload.get("role_id")
-    
-    token_data = {"email": email, "id": user_id, "name": name, "phone_number": phone_number, "role_id": role_id}
-    access_data = await create_access_token(token_data)
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Refresh token missing")
 
-    response.set_cookie(key="access_token", value=access_data[0], httponly=True, samesite="lax", secure=False, max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
-    
-    return {"access_token": access_data[0], "token_type": "bearer"}
+        payload = await verify_refresh_token(refresh_token)
 
+        if payload is None:
+            raise HTTPException(status_code=403, detail="Invalid refresh token")
+
+        jti = payload.get("jti")
+
+        if await is_revoked(jti=jti, db=db):
+            raise HTTPException(status_code=403, detail="Refresh token revoked")
+
+        user_id = payload.get("id")
+        email = payload.get("email")
+        name = payload.get("name")
+        phone_number = payload.get("phone_number")
+        role_id = payload.get("role_id")
+
+        token_data = {
+            "email": email,
+            "id": user_id,
+            "name": name,
+            "phone_number": phone_number,
+            "role_id": role_id
+        }
+
+        access_data = await create_access_token(token_data)
+
+        response.set_cookie(
+            key="access_token",
+            value=access_data[0],
+            httponly=True,
+            samesite="lax",
+            secure=False,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        )
+
+        return {"access_token": access_data[0], "token_type": "bearer"}
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Token refresh failed"
+        )

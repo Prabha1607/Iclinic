@@ -55,6 +55,9 @@ Example: {{"appointment_type_id": 3}}"""
 
     except (json.JSONDecodeError, TypeError, ValueError):
         return _fallback_appointment_type_id(appointment_types)
+    except Exception as e:
+
+        return _fallback_appointment_type_id(appointment_types)
 
 
 async def _classify_intent(conversation_transcript: str, appointment_types: dict) -> str:
@@ -78,6 +81,9 @@ Return JSON with key "intent" only."""
         intent = str(parsed.get("intent", DEFAULT_INTENT)).strip().lower()
     except (json.JSONDecodeError, AttributeError, KeyError):
         return DEFAULT_INTENT
+    except Exception as e:
+
+        return DEFAULT_INTENT
 
     valid_intents = [_normalise(name) for _, (name, _) in appointment_types.items()]
     return intent if intent in valid_intents else DEFAULT_INTENT
@@ -96,16 +102,18 @@ async def mapping_node(state: dict) -> dict:
         )
 
     appointment_types: dict = state.get("appointment_types") or {}
-    print("appointment_types:", appointment_types)
 
     conversation_history: list[dict] = list(state.get("clarify_conversation_history") or [])
     conversation_transcript = _build_conversation_transcript(conversation_history)
 
-    intent = DEFAULT_INTENT if not conversation_transcript else await _classify_intent(conversation_transcript, appointment_types)
+    try:
+        intent = DEFAULT_INTENT if not conversation_transcript else await _classify_intent(conversation_transcript, appointment_types)
+        appointment_type_id = await _resolve_appointment_type_id(intent, appointment_types)
+    except Exception as e:
 
-    appointment_type_id = await _resolve_appointment_type_id(intent, appointment_types)
+        intent = DEFAULT_INTENT
+        appointment_type_id = _fallback_appointment_type_id(appointment_types) if appointment_types else None
 
-    print(f"[mapping_node] intent={intent!r} → appointment_type_id={appointment_type_id}")
 
     friendly_name = intent.replace("_", " ").title()
 

@@ -3,30 +3,40 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.config.jwt_handler import verify_access_token
 
+
 async def get_db():
+    try:
+        async with AsyncSessionLocal() as Session:
+            yield Session
+    except Exception:
+        raise Exception("Database connection failed")
 
-    async with AsyncSessionLocal()  as Session:
-        yield Session
 
-  
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    token = request.cookies.get("access_token")
+    try:
+        token = request.cookies.get("access_token")
 
-    if not token:
-        raise HTTPException(status_code=401, detail="Access token missing")
+        if not token:
+            raise HTTPException(status_code=401, detail="Access token missing")
 
-    payload = await verify_access_token(token)
+        payload = await verify_access_token(token)
 
-    if payload is None:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        if payload is None:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    email = payload.get("email")
-    phone_no = payload.get("phone_number")
-    name = payload.get("name")
+        email = payload.get("email")
+        phone_no = payload.get("phone_number")
+        name = payload.get("name")
+
+        return {"email": email, "phone_number": phone_no, "name": name}
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Authentication failed")
     
-    return {"email": email, "phone_number": phone_no, "name": name}
 
-
+    

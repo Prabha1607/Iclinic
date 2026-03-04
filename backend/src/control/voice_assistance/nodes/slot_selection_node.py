@@ -44,36 +44,40 @@ def fmt_date(d: date) -> str:
 
 
 async def fetch_all_slots(doctor_id: int) -> list[dict]:
-    async with AsyncSessionLocal() as db:
-        today = date.today()
+    try:
+        async with AsyncSessionLocal() as db:
+            today = date.today()
 
-        all_slots = await bulk_get_instance(AvailableSlot, db, provider_id=doctor_id, is_active=True)
+            all_slots = await bulk_get_instance(AvailableSlot, db, provider_id=doctor_id, is_active=True)
 
-        future_available = [
-            s for s in all_slots
-            if s.availability_date >= today and s.status == SlotStatus.AVAILABLE
-        ]
+            future_available = [
+                s for s in all_slots
+                if s.availability_date >= today and s.status == SlotStatus.AVAILABLE
+            ]
 
-        all_appointments = await bulk_get_instance(Appointment, db, provider_id=doctor_id, is_active=True)
+            all_appointments = await bulk_get_instance(Appointment, db, provider_id=doctor_id, is_active=True)
 
-        booked_slot_ids = {
-            a.availability_slot_id for a in all_appointments
-            if str(a.status.value).upper() in ("SCHEDULED", "CONFIRMED")
-        }
-
-        return [
-            {
-                "id":           s.id,
-                "date":         s.availability_date,
-                "start_time":   s.start_time,
-                "end_time":     s.end_time,
-                "period":       classify_period(s.start_time),
-                "display":      f"{fmt_time(s.start_time)} → {fmt_time(s.end_time)}",
-                "full_display": f"{fmt_time(s.start_time)} → {fmt_time(s.end_time)} on {fmt_date(s.availability_date)}",
+            booked_slot_ids = {
+                a.availability_slot_id for a in all_appointments
+                if str(a.status.value).upper() in ("SCHEDULED", "CONFIRMED")
             }
-            for s in future_available
-            if s.id not in booked_slot_ids
-        ]
+
+            return [
+                {
+                    "id":           s.id,
+                    "date":         s.availability_date,
+                    "start_time":   s.start_time,
+                    "end_time":     s.end_time,
+                    "period":       classify_period(s.start_time),
+                    "display":      f"{fmt_time(s.start_time)} → {fmt_time(s.end_time)}",
+                    "full_display": f"{fmt_time(s.start_time)} → {fmt_time(s.end_time)} on {fmt_date(s.availability_date)}",
+                }
+                for s in future_available
+                if s.id not in booked_slot_ids
+            ]
+    except Exception as e:
+        print("[fetch_all_slots error]:", e)
+        return []
 
 
 def slots_for_date(all_slots: list[dict], target: date) -> list[dict]:
@@ -88,13 +92,17 @@ def periods_on_date(slots: list[dict]) -> dict[str, list]:
 
 
 async def llm_extract(system: str, human: str) -> dict:
-    llm = get_llama1()
-    response = await llm.ainvoke([("system", system), ("human", human)])
-    raw = response.content.strip()
     try:
-        return json.loads(clear_markdown(raw))
+        llm = get_llama1()
+        response = await llm.ainvoke([("system", system), ("human", human)])
+        raw = response.content.strip()
+        try:
+            return json.loads(clear_markdown(raw))
+        except Exception as e:
+            print("[llm_extract parse error]:", e, "| raw:", raw)
+            return {}
     except Exception as e:
-        print("[llm_extract parse error]:", e, "| raw:", raw)
+        print("[llm_extract error]:", e)
         return {}
 
 
@@ -453,7 +461,15 @@ async def slot_selection_node(state: dict) -> dict:
     user_text:   str = (state.get("speech_user_text") or "").strip()
     slot_stage:  str = state.get("slot_stage")
 
-    all_slots = await fetch_all_slots(doctor_id)
+    try:
+        all_slots = await fetch_all_slots(doctor_id)
+    except Exception as e:
+        print("[slot_selection_node] fetch_all_slots failed:", e)
+        return update_state(
+            state,
+            slot_selection_completed=False,
+            speech_ai_text="Sorry, I ran into an issue fetching available slots. Please try again.",
+        )
 
     if not all_slots:
         return update_state(
@@ -475,24 +491,27 @@ async def slot_selection_node(state: dict) -> dict:
             ),
         )
 
-    if slot_stage == "ask_date":
-        return await _handle_ask_date(state, user_text, doctor_name, all_slots, available_dates)
+    handler_map = {
+        "ask_date":           lambda: _handle_ask_date(state, user_text, doctor_name, all_slots, available_dates),
+        "confirm_date":       lambda: _handle_confirm_date(state, user_text, doctor_name, all_slots, available_dates),
+        "ask_alternate_date": lambda: _handle_ask_alternate_date(state, user_text, doctor_name, all_slots, available_dates),
+        "ask_period":         lambda: _handle_ask_period(state, user_text, doctor_name, all_slots),
+        "ask_slot":           lambda: _handle_ask_slot(state, user_text, doctor_name, all_slots),
+        "ask_alternate_slot": lambda: _handle_ask_alternate_slot(state, user_text, doctor_name, all_slots, available_dates),
+    }
 
-    if slot_stage == "confirm_date":
-        return await _handle_confirm_date(state, user_text, doctor_name, all_slots, available_dates)
+    handler = handler_map.get(slot_stage)
+    if handler is None:
+        return state
 
-    if slot_stage == "ask_alternate_date":
-        return await _handle_ask_alternate_date(state, user_text, doctor_name, all_slots, available_dates)
+    try:
+        return await handler()
+    except Exception as e:
+        print(f"[slot_selection_node] stage={slot_stage} error:", e)
+        return update_state(
+            state,
+            speech_ai_text="Sorry, something went wrong. Could you please repeat that?",
+        )
+    
 
-    if slot_stage == "ask_period":
-        return await _handle_ask_period(state, user_text, doctor_name, all_slots)
-
-    if slot_stage == "ask_slot":
-        return await _handle_ask_slot(state, user_text, doctor_name, all_slots)
-
-    if slot_stage == "ask_alternate_slot":
-        return await _handle_ask_alternate_slot(state, user_text, doctor_name, all_slots, available_dates)
-
-    return state
-
-
+    
