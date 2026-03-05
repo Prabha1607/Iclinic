@@ -1,17 +1,5 @@
 from src.control.voice_assistance.models import get_llama1
-
-SERVICE_INTENT_PROMPT = """
-    You are an intent classifier for a hospital voice assistant.
-
-    Classify the user's request into ONE of these:
-
-    booking
-    cancellation
-
-    Reply with ONLY one word.
-    If unclear, reply: unclear
-"""
-
+from src.control.voice_assistance.prompts.service_intent_node_prompt import SERVICE_INTENT_PROMPT
 
 async def service_intent_node(state: dict) -> dict:
     

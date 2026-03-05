@@ -4,16 +4,10 @@ from src.data.repositories.generic_crud import bulk_get_instance
 from src.data.models.postgres.user import User, ProviderProfile
 from src.control.voice_assistance.models import get_llama1
 from src.control.voice_assistance.utils import clear_markdown
-
-NO_DOCTORS_RESPONSE = "I'm sorry, no doctors are currently available. Please try again later."
-
-DOCTOR_MATCH_SYSTEM_PROMPT = (
-    "You are a medical scheduling assistant. "
-    "Match the user's response to the correct doctor from the list. "
-    'Reply ONLY with valid JSON: {"doctor_id": <int>, "doctor_name": "<string>"} '
-    "If unclear, pick the doctor whose specialization best fits the patient intent."
+from src.control.voice_assistance.prompts.doctor_selection_node_prompt import (
+    NO_DOCTORS_RESPONSE,
+    DOCTOR_MATCH_SYSTEM_PROMPT,
 )
-
 
 async def fetch_doctors(appointment_type_id: int) -> list[dict]:
     async with AsyncSessionLocal() as db:
