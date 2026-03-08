@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError , IntegrityError
 from typing import List, Type
 from sqlalchemy import select, update, delete , insert , and_
+from sqlalchemy.orm import selectinload
 from src.data.repositories.common_commit import commit_transaction
 
 
@@ -41,21 +42,24 @@ async def bulk_insert_instance(
 
 
 async def update_instance(
-    id : int, 
-    model: Type, 
-    db: AsyncSession, 
+    db: AsyncSession,
+    model: Type,
+    id: int,
     **kwargs
 ):
+    print("DB TYPE:", type(db))
+    print("DEBUG DB:", db)
+    print("DEBUG DB TYPE:", type(db))
     try:
         stmt = update(model).where(model.id == id).values(**kwargs)
 
         result = await db.execute(stmt)
-        
+
         if result.rowcount == 0:
             raise Exception("Record not found")
 
         await commit_transaction(db=db)
-    
+
     except SQLAlchemyError as e:
         await db.rollback()
         raise Exception(f"Update failed: {str(e)}")
@@ -128,21 +132,16 @@ async def bulk_delete_instance(
         raise Exception(f"Bulk delete failed: {str(e)}")
     
 
-async def get_instance_by_id(
-    id : int, 
-    model: Type,
-    db: AsyncSession
-):
-    try:
-        stmt = select(model).where(model.id == id)
+async def get_instance_by_id(db: AsyncSession, model: Type, id: int):
+    stmt = (
+        select(model)
+        .options(selectinload(model.patient_profile))
+        .where(model.id == id)
+    )
 
-        result = await db.execute(stmt)
+    result = await db.execute(stmt)
 
-        return result.scalar_one_or_none()
-
-    except SQLAlchemyError as e:
-        raise Exception(f"Fetch by id failed: {str(e)}")
-
+    return result.scalar_one_or_none()
 
 async def get_instance_by_any(
     model: Type,

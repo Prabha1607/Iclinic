@@ -1,8 +1,23 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import Header from "../../../components/Header";
 import AppointmentWidget from "../../../components/AppointmentWidget";
+import { useAppSelector } from "../../../hooks/hooks";
 
 export default function HomePage() {
+  const navigate = useNavigate();
+  const roleId = useAppSelector((s) => s.auth.roleId);
+  const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);
+  const isPatient = isAuthenticated && roleId === 1;
+  const isFrontDesk = isAuthenticated && roleId === 3;
+
+  // Auto-redirect front desk to their dashboard
+  useEffect(() => {
+    if (isFrontDesk) {
+      navigate("/front-desk", { replace: true });
+    }
+  }, [isFrontDesk, navigate]);
+
   return (
     <div
       className="min-h-screen flex flex-col"
@@ -123,21 +138,53 @@ export default function HomePage() {
             </p>
 
             <div className="fade-up-delay-4 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-              <Link
-                to="/register"
-                className="inline-flex items-center justify-center gap-2 bg-[#3b5bfc] hover:bg-[#2f4edc] text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg text-sm"
-              >
-                Get Started Free
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex items-center justify-center gap-2 bg-white border border-blue-200 text-[#3b5bfc] font-semibold px-6 py-3 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md text-sm"
-              >
-                Sign In
-              </Link>
+              {isFrontDesk ? (
+                <Link
+                  to="/front-desk"
+                  className="inline-flex items-center justify-center gap-2 bg-[#3b5bfc] hover:bg-[#2f4edc] text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg text-sm"
+                >
+                  Go to Dashboard
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </Link>
+              ) : isPatient ? (
+                <>
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center justify-center gap-2 bg-[#3b5bfc] hover:bg-[#2f4edc] text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg text-sm"
+                  >
+                    My Appointments
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                  <Link
+                    to="/profile"
+                    className="inline-flex items-center justify-center gap-2 bg-white border border-blue-200 text-[#3b5bfc] font-semibold px-6 py-3 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md text-sm"
+                  >
+                    My Profile
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/register"
+                    className="inline-flex items-center justify-center gap-2 bg-[#3b5bfc] hover:bg-[#2f4edc] text-white font-semibold px-6 py-3 rounded-xl shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg text-sm"
+                  >
+                    Get Started Free
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center justify-center gap-2 bg-white border border-blue-200 text-[#3b5bfc] font-semibold px-6 py-3 rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-md text-sm"
+                  >
+                    Sign In
+                  </Link>
+                </>
+              )}
             </div>
 
             {/* Mini trust bar */}
@@ -397,18 +444,37 @@ export default function HomePage() {
             Join hundreds of clinics using iClinic's AI voice agent to streamline appointments and delight patients.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-white text-[#3b5bfc] font-bold px-7 py-3.5 rounded-xl hover:bg-blue-50 transition-all text-sm shadow-lg hover:-translate-y-0.5"
-            >
-              Create Free Account
-            </Link>
-            <Link
-              to="/login"
-              className="inline-flex items-center justify-center gap-2 bg-transparent border border-white/40 text-white font-semibold px-7 py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm"
-            >
-              Sign In
-            </Link>
+            {isPatient ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-[#3b5bfc] font-bold px-7 py-3.5 rounded-xl hover:bg-blue-50 transition-all text-sm shadow-lg hover:-translate-y-0.5"
+                >
+                  My Appointments
+                </Link>
+                <Link
+                  to="/profile"
+                  className="inline-flex items-center justify-center gap-2 bg-transparent border border-white/40 text-white font-semibold px-7 py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm"
+                >
+                  My Profile
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-[#3b5bfc] font-bold px-7 py-3.5 rounded-xl hover:bg-blue-50 transition-all text-sm shadow-lg hover:-translate-y-0.5"
+                >
+                  Create Free Account
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex items-center justify-center gap-2 bg-transparent border border-white/40 text-white font-semibold px-7 py-3.5 rounded-xl hover:bg-white/10 transition-all text-sm"
+                >
+                  Sign In
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -4,6 +4,7 @@ import HomePage from "../features/home/components/HomePage";
 import Login from "../features/auth/components/Login";
 import Register from "../features/auth/components/Register";
 import PatientDashboard from "../features/patient/components/PatientDashboard";
+import PatientProfile from "../features/patient/components/PatientProfile";
 import BookingPage from "../features/booking/components/BookingPage";
 import BookAppointmentWizard from "../features/booking/components/BookAppointmentWizard";
 import FrontDeskLayout from "../features/frontdesk/components/FrontDeskLayout";
@@ -33,6 +34,14 @@ const router = createBrowserRouter([
             element: (
               <RequireRole allowedRoles={[1]}>
                 <PatientDashboard />
+              </RequireRole>
+            ),
+          },
+          {
+            path: "profile",
+            element: (
+              <RequireRole allowedRoles={[1]}>
+                <PatientProfile />
               </RequireRole>
             ),
           },

@@ -2,8 +2,8 @@ from datetime import datetime,timezone
 from fastapi import HTTPException
 from sqlalchemy import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.schemas.user import UserCreate
-from src.data.repositories.users import create_patient_repo, get_all_providers, get_patients, get_providers_by_type_repo
+from src.schemas.user import UserCreate, UserUpdate
+from src.data.repositories.users import create_patient_repo, get_all_providers, get_patients, get_providers_by_type_repo, update_user_with_profile_repo
 from src.config.hashing import get_password_hash
 from src.utils.to_uuid import to_uuid
 from src.data.models.postgres.refresh_token import RefreshToken
@@ -189,45 +189,44 @@ async def create_patient_service(
 
     data = patient_data.model_dump()
 
+    profile_data = data.pop("patient_profile")
+
     data["password"] = get_password_hash(data["password"])
 
     patient = await create_patient_repo(
         db=db,
-        user_data=data
+        user_data=data,
+        profile_data=profile_data
     )
 
     return patient
 
-from src.data.models.postgres.user import User
-from src.data.repositories.generic_crud import update_instance
-from passlib.context import CryptContext
 
 
 async def update_user_service(
-    db,
+    db: AsyncSession,
     user_id: int,
-    user_data
+    user_data: UserUpdate
 ):
+    data = user_data.model_dump(exclude_unset=True)
 
-    user = await get_instance_by_id(db, User, user_id)
+    # Pop the nested profile object BEFORE dumping — access it from the original model
+    profile_data = None
+    if user_data.patient_profile is not None:
+        # Use exclude_unset=True on the nested model so only sent fields are updated
+        profile_data = user_data.patient_profile.model_dump(exclude_unset=True)
+        if not profile_data:  # empty dict — nothing to update
+            profile_data = None
 
-    if not user:
-        raise Exception("User not found")
+    data.pop("patient_profile", None)  # remove from user_data dict
 
-    update_data = user_data.model_dump(exclude_unset=True)
+    if "password" in data:
+        data["password"] = get_password_hash(data["password"])
 
-    if "password" in update_data:
-        update_data["password"] = get_password_hash(update_data["password"])
-
-    await update_instance(
+    return await update_user_with_profile_repo(
         db=db,
-        model=User,
-        id=user_id,
-        **update_data
+        user_id=user_id,
+        user_data=data,
+        profile_data=profile_data
     )
-
-    updated_user = await get_instance_by_id(db, User, user_id)
-
-    return updated_user
-
 

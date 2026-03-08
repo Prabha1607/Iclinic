@@ -62,6 +62,10 @@ class UserResponse(BaseModel):
     }
 
 
+from datetime import date
+from pydantic import BaseModel, computed_field
+
+
 class PatientProfileResponse(BaseModel):
     id: int
     user_id: int
@@ -73,9 +77,7 @@ class PatientProfileResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 class PatientFullResponse(BaseModel):
     id: int
@@ -116,7 +118,14 @@ class ProviderFullResponse(UserResponse):
     provider_profile: Optional[ProviderProfileResponse] = None
 
     model_config = {"from_attributes": True}
+    
+class PatientProfileUpdate(BaseModel):
+    date_of_birth: Optional[date] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    preferred_language: Optional[str] = None
 
+    model_config = {"from_attributes": True}
 
 
 class UserUpdate(BaseModel):
@@ -124,12 +133,12 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = Field(None, min_length=1, max_length=100)
     email: Optional[EmailStr] = None
     password: Optional[str] = None
+    patient_profile: Optional[PatientProfileUpdate] = None  # ← key addition
 
     @field_validator("password")
     def validate_password(cls, v):
         if v is None:
             return v
-
         if len(v) < 6:
             raise ValueError("Password must be at least 6 characters long.")
         if not re.search(r"[A-Z]", v):
@@ -138,9 +147,6 @@ class UserUpdate(BaseModel):
             raise ValueError("Password must contain one number.")
         if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;:,.<>/?~]", v):
             raise ValueError("Password must contain one special character.")
-
         return v
 
     model_config = {"from_attributes": True}
-
-    
