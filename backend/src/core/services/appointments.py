@@ -128,7 +128,6 @@ async def get_all_appointments_service(
 
     result = []
     for appt in appointments:
-        # Pull instructions from appointment_type if not set on appointment itself
         instructions = appt.instructions or (
             appt.appointment_type.instructions if appt.appointment_type else None
         )
@@ -153,7 +152,6 @@ async def get_all_appointments_service(
             created_at=appt.created_at,
             updated_at=appt.updated_at,
 
-            # nested user (patient)
             user=UserResponse(
                 id=appt.user.id,
                 first_name=appt.user.first_name,
@@ -162,7 +160,6 @@ async def get_all_appointments_service(
                 phone_no=appt.user.phone_no,
             ) if appt.user else None,
 
-            # nested provider + provider_profile
             provider=ProviderResponse(
                 id=appt.provider.id,
                 first_name=appt.provider.first_name,
@@ -177,7 +174,6 @@ async def get_all_appointments_service(
                 ) if appt.provider and appt.provider.provider_profile else None,
             ) if appt.provider else None,
 
-            # nested appointment type
             appointment_type=AppointmentTypeResponse(
                 id=appt.appointment_type.id,
                 name=appt.appointment_type.name,

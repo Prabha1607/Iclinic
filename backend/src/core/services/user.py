@@ -210,15 +210,13 @@ async def update_user_service(
 ):
     data = user_data.model_dump(exclude_unset=True)
 
-    # Pop the nested profile object BEFORE dumping — access it from the original model
     profile_data = None
     if user_data.patient_profile is not None:
-        # Use exclude_unset=True on the nested model so only sent fields are updated
         profile_data = user_data.patient_profile.model_dump(exclude_unset=True)
-        if not profile_data:  # empty dict — nothing to update
+        if not profile_data:  
             profile_data = None
 
-    data.pop("patient_profile", None)  # remove from user_data dict
+    data.pop("patient_profile", None)  
 
     if "password" in data:
         data["password"] = get_password_hash(data["password"])
