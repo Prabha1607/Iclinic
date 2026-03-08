@@ -5,7 +5,7 @@ from src.config.settings import settings
 from src.control.voice_assistance.utils import fresh_state, make_gather, say
 from src.control.voice_assistance.graph import build_call_graph, build_response_graph
 from src.api.rest.dependencies import get_current_user, get_db
-from src.core.services.appointment_type import get_appointment_types
+from src.core.services.appointment_types import get_appointment_types
 from src.control.voice_assistance.session_store import get_session, set_session, delete_session
 from src.core.services.user import get_user
 import logging

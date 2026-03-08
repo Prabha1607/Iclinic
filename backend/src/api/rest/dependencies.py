@@ -5,13 +5,14 @@ from src.config.jwt_handler import verify_access_token
 
 
 async def get_db():
-    try:
-        async with AsyncSessionLocal() as Session:
-            yield Session
-    except Exception:
-        raise Exception("Database connection failed")
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+        except Exception as e:
+            print("DB ERROR:", e)   # show real error
+            raise
 
-
+        
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)

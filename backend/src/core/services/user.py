@@ -2,18 +2,20 @@ from datetime import datetime,timezone
 from fastapi import HTTPException
 from sqlalchemy import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.schemas.user import UserCreate
+from src.data.repositories.users import create_patient_repo, get_all_providers, get_patients, get_providers_by_type_repo
 from src.config.hashing import get_password_hash
 from src.utils.to_uuid import to_uuid
 from src.data.models.postgres.refresh_token import RefreshToken
 from src.data.repositories.common_commit import commit_transaction
-from src.data.repositories.generic_crud import get_instance_by_any, insert_instance , bulk_get_instance
+from src.data.repositories.generic_crud import get_instance_by_any, get_instance_by_id, insert_instance , bulk_get_instance
 from src.data.models.postgres.role import Role
 from src.data.models.postgres.user import User
+from datetime import date
 
 
 def is_email(value: str) -> bool:
     return "@" in value
-
 
 async def create_user(db : AsyncSession,user_data):
 
@@ -49,7 +51,6 @@ async def get_user_by_phone(phone_no : str , db : AsyncSession):
 
     except Exception:
         raise Exception("Failed to fetch user by phone")
-
 
 async def get_user(identifier : str , db : AsyncSession):
 
@@ -142,6 +143,91 @@ async def get_roles(db : AsyncSession):
     except Exception:
         raise Exception("Failed to fetch roles")
     
+async def get_all_patients(
+    db: AsyncSession,
+    page: int = 1,
+    page_size: int = 10,
+    is_active: bool | None = None,
+):
+    result = await get_patients(
+        db=db,
+        page=page,
+        page_size=page_size,
+        is_active=is_active,
+    )
+    return result
 
-def get_all_user():
-    pass
+
+async def get_providers(
+    db: AsyncSession,
+    page: int,
+    page_size: int,
+    is_active: bool | None
+):
+    providers = await get_all_providers(
+        db, page, page_size, is_active
+    )
+    return providers
+
+
+async def get_providers_by_type_service(
+    db: AsyncSession,
+    appointment_type_id: int,
+    is_active: bool | None = None
+):
+    return await get_providers_by_type_repo(
+        db=db,
+        appointment_type_id=appointment_type_id,
+        is_active=is_active
+    )
+
+
+async def create_patient_service(
+    db: AsyncSession,
+    patient_data: UserCreate
+):
+
+    data = patient_data.model_dump()
+
+    data["password"] = get_password_hash(data["password"])
+
+    patient = await create_patient_repo(
+        db=db,
+        user_data=data
+    )
+
+    return patient
+
+from src.data.models.postgres.user import User
+from src.data.repositories.generic_crud import update_instance
+from passlib.context import CryptContext
+
+
+async def update_user_service(
+    db,
+    user_id: int,
+    user_data
+):
+
+    user = await get_instance_by_id(db, User, user_id)
+
+    if not user:
+        raise Exception("User not found")
+
+    update_data = user_data.model_dump(exclude_unset=True)
+
+    if "password" in update_data:
+        update_data["password"] = get_password_hash(update_data["password"])
+
+    await update_instance(
+        db=db,
+        model=User,
+        id=user_id,
+        **update_data
+    )
+
+    updated_user = await get_instance_by_id(db, User, user_id)
+
+    return updated_user
+
+

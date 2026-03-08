@@ -37,17 +37,18 @@ export default function Login() {
       const response = await loginUser(form);
       const token = response.access_token;
       const payload = parseJwt(token);
+      const roleId = payload?.role_id as number;
       dispatch(setCredentials({
         token,
         user: {
           id: payload?.id as number,
           email: payload?.email as string,
           name: payload?.name as string,
-          role_id: payload?.role_id as number,
+          role_id: roleId,
           phone_number: payload?.phone_number as string,
         },
       }));
-      navigate("/dashboard");
+      navigate(roleId === 3 ? "/front-desk" : "/dashboard");
     } catch (err: any) {
       const message =
         err?.response?.data?.detail?.detail ||

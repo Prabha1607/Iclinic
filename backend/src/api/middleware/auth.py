@@ -16,6 +16,7 @@ class AuthorizationMiddleware(BaseHTTPMiddleware):
             "/api/v1/voice/voice-response",
             "/api/v1/users/get_roles",
             "/api/v1/voice/call-status",
+            "/api/v1/users/patients/create",  
             "/favicon.ico",
             "/docs",
             "/openapi.json"

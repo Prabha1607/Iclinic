@@ -1,16 +1,14 @@
 import json
 import traceback
-
+from src.core.services.available_slots import change_slot_status
+from src.data.repositories.generic_crud import insert_instance
 from src.control.voice_assistance.prompts.book_appointment_node_prompt import (
     EXTRACT_CONTEXT_PROMPT,
     DEFAULT_CONTEXT,
 )
-
 from src.data.clients.postgres_client import AsyncSessionLocal
-from src.data.repositories.generic_crud import insert_instance
 from src.data.models.postgres.appointment import Appointment
-from src.data.models.postgres.ENUM import AppointmentStatus, BookingChannel
-
+from src.data.models.postgres.ENUM import AppointmentStatus, BookingChannel, SlotStatus
 from src.control.voice_assistance.models import get_llama1
 from src.control.voice_assistance.utils import clear_markdown, update_state
 
@@ -56,7 +54,6 @@ async def extract_appointment_context(conversation_history: list | str) -> dict:
 async def book_appointment_node(state: dict) -> dict:
     print("\n[book_appointment_node] --------------------------------")
 
-    # print incoming state
     
     if state.get("slot_stage") != "ready_to_book":
         print("[SKIP] Slot stage not ready")
@@ -106,11 +103,16 @@ async def book_appointment_node(state: dict) -> dict:
         print(json.dumps(payload, indent=2, default=str))
 
         async with AsyncSessionLocal() as db:
-            await insert_instance(
-                Appointment,
-                db,
-                **payload
-            )
+                await insert_instance(
+                    Appointment,
+                    db,
+                    **payload
+                )
+                await change_slot_status(
+                    db=db,
+                    slot_id=matched["id"],
+                    new_status=SlotStatus.BOOKED
+                )
 
 
     except Exception as e:
